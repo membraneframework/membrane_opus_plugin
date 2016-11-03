@@ -8,75 +8,9 @@
 #include <string.h>
 #include <erl_nif.h>
 #include <opus/opus.h>
+#include <membrane/membrane.h>
 
 #define MEMBRANE_LOG_TAG "Membrane.Element.Opus.EncoderNative"
-
-
-// ===== START COMMON =====
-// TODO to be extracted to a separate helper lib
-
-// FIXME
-#define MEMBRANE_DEBUG(message, ...) fprintf(stderr, "[%s] " message "\n", MEMBRANE_LOG_TAG, ##__VA_ARGS__);
-
-
-/**
- * Builds `{:error, reason}`.
- */
-static ERL_NIF_TERM membrane_util_make_error(ErlNifEnv* env, ERL_NIF_TERM reason) {
-  ERL_NIF_TERM tuple[2] = {
-    enif_make_atom(env, "error"),
-    reason
-  };
-
-  return enif_make_tuple_from_array(env, tuple, 2);
-}
-
-
-/**
- * Builds `{:ok, arg}`.
- */
-static ERL_NIF_TERM membrane_util_make_ok_tuple(ErlNifEnv* env, ERL_NIF_TERM arg) {
-  ERL_NIF_TERM tuple[2] = {
-    enif_make_atom(env, "ok"),
-    arg
-  };
-
-  return enif_make_tuple_from_array(env, tuple, 2);
-}
-
-
-/**
- * Builds `:ok`.
- */
-static ERL_NIF_TERM membrane_util_make_ok(ErlNifEnv* env) {
-  return enif_make_atom(env, "ok");
-}
-
-
-/**
- * Builds `:todo`.
- */
-static ERL_NIF_TERM membrane_util_make_todo(ErlNifEnv* env) {
-  return enif_make_atom(env, "todo");
-}
-
-
-/**
- * Builds `{:error, {:args, field, description}}` for returning when
- * certain constructor-style functions get invalid arguments.
- */
-static ERL_NIF_TERM membrane_util_make_error_args(ErlNifEnv* env, const char* field, const char *description) {
-  ERL_NIF_TERM tuple[3] = {
-    enif_make_atom(env, "args"),
-    enif_make_atom(env, field),
-    enif_make_string(env, description, ERL_NIF_LATIN1)
-  };
-
-  return membrane_util_make_error(env, enif_make_tuple_from_array(env, tuple, 3));
-}
-
-// ===== END COMMON =====
-
 
 
 #define APPLICATION_ATOM_LEN                 20  // one of voip, audio, restricted_lowdelay, so 19+1 bytes max
@@ -308,18 +242,21 @@ static ERL_NIF_TERM export_get_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_T
 
 
 /**
- * Encodes chunk of input signal.
+ * Encodes chunk of input signal that uses S16LE format.
  *
  * Expects 3 arguments:
  *
  * - encoder resource
  * - input signal (bitstring), containing PCM data (interleaved if 2 channels).
- *   length is frame_size*channels*sizeof(opus_int16)
+ *   length is frame_size*channels*2
  * - frame size (integer), Number of samples per channel in the input signal.
  *   This must be an Opus frame size for the encoder's sampling rate. For
  *   example, at 48 kHz the permitted values are 120, 240, 480, 960, 1920, and
  *   2880. Passing in a duration of less than 10 ms (480 samples at 48 kHz) will
  *   prevent the encoder from using the LPC or hybrid modes.
+ *
+ * Constraints for input signal and frame size are not validated for performance
+ * reasons - it's programmer's fault to break them.
  *
  * On success, returns `{:ok, data}`.
  *
@@ -327,8 +264,36 @@ static ERL_NIF_TERM export_get_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_T
  *
  * On encode error, returns `{:error, {:encode, reason}}`.
  */
-static ERL_NIF_TERM export_encode(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM export_encode_int(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+  OpusEncoder **encoder_res;
+  OpusEncoder *encoder;
+  int error;
+  int frame_size;
+  int sample_rate;
+  ErlNifBinary input_signal_binary;
+
+
+  // Get encoder arg
+  if(!enif_get_resource(env, argv[0], RES_OPUS_ENCODER_TYPE, (void *) encoder_res)) {
+    return membrane_util_make_error_args(env, "encoder", "Passed encoder is not valid resource");
+  }
+
+  encoder = *encoder_res;
+
+  // Get input signal arg
+  if(!enif_inspect_binary(env, argv[1], &input_signal_binary)) {
+    return membrane_util_make_error_args(env, "encoder", "Passed input_signal is not valid binary");
+  }
+
+  // Get frame size arg
+  if(!enif_get_int(env, argv[2], &frame_size)) {
+    return membrane_util_make_error_args(env, "frame_size", "Passed bitrate is out of integer range or is not an integer");
+  }
+
+
+  // TODO
+
   return membrane_util_make_todo(env);
 }
 
@@ -339,7 +304,7 @@ static ErlNifFunc nif_funcs[] =
   {"create", 3, export_create},
   {"set_bitrate", 2, export_set_bitrate},
   {"get_bitrate", 1, export_get_bitrate},
-  {"encode", 3, export_encode}
+  {"encode_int", 3, export_encode_int}
 };
 
 ERL_NIF_INIT(Elixir.Membrane.Element.Opus.EncoderNative, nif_funcs, load, NULL, NULL, NULL)

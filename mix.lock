@@ -1,1 +1,3 @@
-%{"porcelain": {:hex, :porcelain, "2.0.2", "c1d4863de3e391195e36457bb3d7e17ee1bca5a44f1d708bc037c313342f58e9", [:mix], []}}
+%{"membrane_common_c": {:git, "git@bitbucket.org:radiokit/membrane-common-c.git", "c674bcdc37a076480115fc0bc900a36dd9655845", []},
+  "membrane_core": {:git, "git@bitbucket.org:radiokit/membrane-core.git", "63e0f1f7dedf332f8083e4481eb5a032eae0c107", []},
+  "porcelain": {:hex, :porcelain, "2.0.2", "c1d4863de3e391195e36457bb3d7e17ee1bca5a44f1d708bc037c313342f58e9", [:mix], []}}

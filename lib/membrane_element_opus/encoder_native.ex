@@ -70,18 +70,21 @@ defmodule Membrane.Element.Opus.EncoderNative do
 
 
   @doc """
-  Encodes chunk of input signal.
+  Encodes chunk of input signal that uses S16LE format.
 
   Expects 3 arguments:
 
   - encoder resource
   - input signal (bitstring), containing PCM data (interleaved if 2 channels).
-    length is frame_size*channels*sizeof(opus_int16)
+    length is frame_size*channels*2
   - frame size (integer), Number of samples per channel in the input signal.
     This must be an Opus frame size for the encoder's sampling rate. For
     example, at 48 kHz the permitted values are 120, 240, 480, 960, 1920, and
     2880. Passing in a duration of less than 10 ms (480 samples at 48 kHz) will
     prevent the encoder from using the LPC or hybrid modes.
+
+  Constraints for input signal and frame size are not validated for performance
+  reasons - it's programmer's fault to break them.
 
   On success, returns `{:ok, data}`.
 
@@ -89,7 +92,7 @@ defmodule Membrane.Element.Opus.EncoderNative do
 
   On encode error, returns `{:error, {:encode, reason}}`.
   """
-  @spec encode(any, bitstring, non_neg_integer) ::
+  @spec encode_int(any, bitstring, non_neg_integer) ::
     {:ok, bitstring} | {:error, {:args, atom, String.t}} | {:error, {:set_bitrate, atom}}
-  def encode(_encoder, _input_signal, _frame_size), do: "NIF fail"
+  def encode_int(_encoder, _input_signal, _frame_size), do: "NIF fail"
 end
