@@ -8,7 +8,7 @@ defmodule Membrane.Element.Opus.EncoderNative do
 
   @doc false
   def load_nifs do
-    :ok = :erlang.load_nif('./encoder', 0)
+    :ok = :erlang.load_nif('./membrane_element_opus_encoder', 0)
   end
 
 
@@ -25,10 +25,12 @@ defmodule Membrane.Element.Opus.EncoderNative do
 
   On bad arguments passed, returns `{:error, {:args, field, description}}`.
 
-  On encoder initialization error, returns `{:error, {:create, reason}}`.
+  On encoder initialization error, returns `{:error, {:internal, reason}}`.
   """
   @spec create(non_neg_integer, non_neg_integer, :voip | :audio | :restricted_lowdelay) ::
-    {:ok, any} | {:error, {:args, atom, String.t}} | {:error, {:set_bitrate, atom}}
+    {:ok, any} |
+    {:error, {:args, atom, String.t}} |
+    {:error, {:internal, atom}}
   def create(_sample_rate, _channels, _application), do: raise "NIF fail"
 
 
@@ -65,7 +67,9 @@ defmodule Membrane.Element.Opus.EncoderNative do
   On error, returns `{:error, {:set_bitrate, reason}}`.
   """
   @spec get_bitrate(any) ::
-    :ok | {:error, {:args, atom, String.t}} | {:error, {:set_bitrate, atom}}
+    :ok |
+    {:error, {:args, atom, String.t}} |
+    {:error, {:set_bitrate, atom}}
   def get_bitrate(_encoder), do: raise "NIF fail"
 
 
@@ -93,6 +97,8 @@ defmodule Membrane.Element.Opus.EncoderNative do
   On encode error, returns `{:error, {:encode, reason}}`.
   """
   @spec encode_int(any, bitstring, non_neg_integer) ::
-    {:ok, bitstring} | {:error, {:args, atom, String.t}} | {:error, {:set_bitrate, atom}}
+    {:ok, bitstring} |
+    {:error, {:args, atom, String.t}} |
+    {:error, {:encode_int, atom}}
   def encode_int(_encoder, _input_signal, _frame_size), do: "NIF fail"
 end
