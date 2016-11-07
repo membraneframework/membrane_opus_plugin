@@ -103,7 +103,7 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
   // Create encoder
   OpusEncoder *encoder = enif_alloc_resource(RES_OPUS_ENCODER_TYPE, opus_encoder_get_size(channels));
-  MEMBRANE_DEBUG("Creating OpusEncoder %p", encoder);
+  MEMBRANE_DEBUG("Creating OpusEncoder %p, sample rate = %d Hz, channels = %d, application = %d", encoder, sample_rate, channels, application);
   error = opus_encoder_init(encoder, sample_rate, channels, application);
   if(error != OPUS_OK) {
     enif_release_resource(encoder);
@@ -233,7 +233,6 @@ static ERL_NIF_TERM export_get_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_T
 static ERL_NIF_TERM export_encode_int(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
   OpusEncoder *encoder;
-  int error;
   int frame_size;
   int sample_rate;
   ErlNifBinary input_signal_binary;
@@ -247,7 +246,7 @@ static ERL_NIF_TERM export_encode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
   // Get input signal arg
   if(!enif_inspect_binary(env, argv[1], &input_signal_binary)) {
-    return membrane_util_make_error_args(env, "encoder", "Passed input_signal is not valid binary");
+    return membrane_util_make_error_args(env, "input_signal", "Passed input_signal is not valid binary");
   }
 
   // Get frame size arg

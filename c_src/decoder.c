@@ -13,6 +13,8 @@
 
 #define MEMBRANE_LOG_TAG "Membrane.Element.Opus.DecoderNative"
 
+#define OPUS_DECODED_SIGNAL_MAX_BYTES 23040
+#define OPUS_DECODED_SIGNAL_MAX_FRAMES 5760
 
 ErlNifResourceType *RES_OPUS_DECODER_TYPE;
 
@@ -79,7 +81,7 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
   // Create decoder
   OpusDecoder *decoder = enif_alloc_resource(RES_OPUS_DECODER_TYPE, opus_decoder_get_size(channels));
-  MEMBRANE_DEBUG("Creating OpusDecoder %p", decoder);
+  MEMBRANE_DEBUG("Creating OpusDecoder %p, sample rate = %d Hz, channels = %d", decoder, sample_rate, channels);
   error = opus_decoder_init(decoder, sample_rate, channels);
   if(error != OPUS_OK) {
     enif_release_resource(decoder);
@@ -94,9 +96,76 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 }
 
 
+/**
+ * Decodes chunk of input payload.
+ *
+ * Expects 3 arguments:
+ *
+ * - decoder resource
+ * - input payload (bitstring), pass nil to indicate data loss
+ * - whether to decode FEC (boolean)
+ *
+ * On success, returns `{:ok, data}`.
+ *
+ * On bad arguments passed, returns `{:error, {:args, field, description}}`.
+ *
+ * On decode error, returns `{:error, {:decode, reason}}`.
+ */
+static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+  OpusDecoder *decoder;
+  ErlNifBinary input_payload_binary;
+
+
+  // Get decoder arg
+  if(!enif_get_resource(env, argv[0], RES_OPUS_DECODER_TYPE, (void **) &decoder)) {
+    return membrane_util_make_error_args(env, "decoder", "Passed decoder is not valid resource");
+  }
+
+
+  // Get input signal arg
+  if(!enif_inspect_binary(env, argv[1], &input_payload_binary)) {
+    return membrane_util_make_error_args(env, "input_payload", "Passed input_payload is not valid binary");
+  }
+
+  // TODO handle nil
+
+
+  // Get decode FEC arg
+  // TODO
+
+
+  // Allocate temporary storage for the output, let's allocate maximum allowed
+  // by Opus (120ms of data for 48kHz = 5760 frames stereo)
+  opus_int16 *decoded_signal_data_temp = malloc(OPUS_DECODED_SIGNAL_MAX_BYTES);
+
+  // Decode
+  int channels = opus_packet_get_nb_channels(input_payload_binary.data);
+  if(channels < 0) {
+    return make_error_from_opus_error(env, "decode", channels);
+  }
+
+  int decoded_samples = opus_decode(decoder, input_payload_binary.data, input_payload_binary.size, decoded_signal_data_temp, OPUS_DECODED_SIGNAL_MAX_FRAMES, 0); // FIXME FEC
+  if(decoded_samples < 0) {
+    free(decoded_signal_data_temp);
+    return make_error_from_opus_error(env, "decode", decoded_samples);
+  }
+
+  // Prepare return value
+  ERL_NIF_TERM decoded_signal_term;
+  size_t decoded_signal_size = decoded_samples * channels * 2;
+  unsigned char *decoded_signal_data = enif_make_new_binary(env, decoded_signal_size, &decoded_signal_term);
+  memcpy(decoded_signal_data, decoded_signal_data_temp, decoded_signal_size);
+  free(decoded_signal_data_temp);
+
+  return membrane_util_make_ok_tuple(env, decoded_signal_term);
+}
+
+
 static ErlNifFunc nif_funcs[] =
 {
   {"create", 2, export_create},
+  {"decode_int", 3, export_decode_int}
 };
 
 ERL_NIF_INIT(Elixir.Membrane.Element.Opus.DecoderNative, nif_funcs, load, NULL, NULL, NULL)

@@ -32,4 +32,25 @@ defmodule Membrane.Element.Opus.DecoderNative do
   {:error, {:internal, atom}}
   def create(_sample_rate, _channels), do: raise "NIF fail"
 
+
+  @doc """
+  Decodes chunk of input payload.
+
+  Expects 3 arguments:
+
+  - decoder resource
+  - input payload (bitstring), pass nil to indicate data loss
+  - whether to decode FEC (boolean)
+
+  On success, returns `{:ok, data}`.
+
+  On bad arguments passed, returns `{:error, {:args, field, description}}`.
+
+  On decode error, returns `{:error, {:decode, reason}}`.
+  """
+  @spec decode_int(any, bitstring, boolean) ::
+    {:ok, bitstring} |
+    {:error, {:args, atom, String.t}} |
+    {:error, {:decode_int, atom}}
+  def decode_int(_decoder, _input_payload, _decode_fec), do: "NIF fail"
 end
