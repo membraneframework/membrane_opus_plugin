@@ -134,18 +134,16 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
  */
 static ERL_NIF_TERM export_set_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-  OpusEncoder **encoder_res;
   OpusEncoder *encoder;
   int bitrate;
   int error;
 
 
   // Get encoder arg
-  if(!enif_get_resource(env, argv[0], RES_OPUS_ENCODER_TYPE, (void *) encoder_res)) {
+  if(!enif_get_resource(env, argv[0], RES_OPUS_ENCODER_TYPE, (void **) &encoder)) {
     return membrane_util_make_error_args(env, "encoder", "Passed encoder is not valid resource");
   }
 
-  encoder = *encoder_res;
 
 
   // Get bitrate arg
@@ -185,18 +183,16 @@ static ERL_NIF_TERM export_set_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_T
  */
 static ERL_NIF_TERM export_get_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-  OpusEncoder **encoder_res;
   OpusEncoder *encoder;
   int bitrate;
   int error;
 
 
   // Get encoder arg
-  if(!enif_get_resource(env, argv[0], RES_OPUS_ENCODER_TYPE, (void *) encoder_res)) {
+  if(!enif_get_resource(env, argv[0], RES_OPUS_ENCODER_TYPE, (void **) &encoder)) {
     return membrane_util_make_error_args(env, "encoder", "Passed encoder is not valid resource");
   }
 
-  encoder = *encoder_res;
 
 
   // Get the bitrate
@@ -236,7 +232,6 @@ static ERL_NIF_TERM export_get_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_T
  */
 static ERL_NIF_TERM export_encode_int(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-  OpusEncoder **encoder_res;
   OpusEncoder *encoder;
   int error;
   int frame_size;
@@ -245,11 +240,10 @@ static ERL_NIF_TERM export_encode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 
   // Get encoder arg
-  if(!enif_get_resource(env, argv[0], RES_OPUS_ENCODER_TYPE, (void *) encoder_res)) {
+  if(!enif_get_resource(env, argv[0], RES_OPUS_ENCODER_TYPE, (void **) &encoder)) {
     return membrane_util_make_error_args(env, "encoder", "Passed encoder is not valid resource");
   }
 
-  encoder = *encoder_res;
 
   // Get input signal arg
   if(!enif_inspect_binary(env, argv[1], &input_signal_binary)) {
@@ -258,13 +252,28 @@ static ERL_NIF_TERM export_encode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
   // Get frame size arg
   if(!enif_get_int(env, argv[2], &frame_size)) {
-    return membrane_util_make_error_args(env, "frame_size", "Passed bitrate is out of integer range or is not an integer");
+    return membrane_util_make_error_args(env, "frame_size", "Passed frame size is out of integer range or is not an integer");
   }
 
 
-  // TODO
+  // Allocate temporary storage for the output, it is not going to be larger
+  // than input signal for sure.
+  unsigned char *encoded_signal_data_temp = malloc(input_signal_binary.size);
 
-  return membrane_util_make_todo(env);
+  // Encode
+  opus_int32 encoded_size = opus_encode(encoder, (const opus_int16 *) input_signal_binary.data, frame_size, encoded_signal_data_temp, input_signal_binary.size);
+  if(encoded_size < 0) {
+    free(encoded_signal_data_temp);
+    return make_error_from_opus_error(env, "encode", encoded_size);
+  }
+
+  // Prepare return value
+  ERL_NIF_TERM encoded_signal_term;
+  unsigned char *encoded_signal_data = enif_make_new_binary(env, encoded_size, &encoded_signal_term);
+  memcpy(encoded_signal_data, encoded_signal_data_temp, encoded_size);
+  free(encoded_signal_data_temp);
+
+  return membrane_util_make_ok_tuple(env, encoded_signal_term);
 }
 
 
