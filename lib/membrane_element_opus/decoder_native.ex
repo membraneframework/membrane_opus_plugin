@@ -42,14 +42,14 @@ defmodule Membrane.Element.Opus.DecoderNative do
   - input payload (bitstring), pass nil to indicate data loss
   - whether to decode FEC (boolean)
 
-  On success, returns `{:ok, data}`.
+  On success, returns `{:ok, {data, channels}}`.
 
   On bad arguments passed, returns `{:error, {:args, field, description}}`.
 
   On decode error, returns `{:error, {:decode, reason}}`.
   """
   @spec decode_int(any, bitstring, boolean) ::
-    {:ok, bitstring} |
+    {:ok, {bitstring, non_neg_integer}} |
     {:error, {:args, atom, String.t}} |
     {:error, {:decode_int, atom}}
   def decode_int(_decoder, _input_payload, _decode_fec), do: "NIF fail"

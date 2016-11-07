@@ -105,7 +105,7 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
  * - input payload (bitstring), pass nil to indicate data loss
  * - whether to decode FEC (boolean)
  *
- * On success, returns `{:ok, data}`.
+ * On success, returns `{:ok, {data, channels}}`.
  *
  * On bad arguments passed, returns `{:error, {:args, field, description}}`.
  *
@@ -158,7 +158,12 @@ static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
   memcpy(decoded_signal_data, decoded_signal_data_temp, decoded_signal_size);
   free(decoded_signal_data_temp);
 
-  return membrane_util_make_ok_tuple(env, decoded_signal_term);
+  ERL_NIF_TERM tuple[2] = {
+    decoded_signal_term,
+    enif_make_int(env, channels)
+  };
+
+  return membrane_util_make_ok_tuple(env, enif_make_tuple_from_array(env, tuple, 2));
 }
 
 
