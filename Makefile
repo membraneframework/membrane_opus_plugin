@@ -9,7 +9,7 @@ darwin: unix
 unix: priv/membrane_element_opus_decoder.so priv/membrane_element_opus_encoder.so
 
 priv/membrane_element_opus_encoder.so: c_src/encoder.c
-	cc -fPIC -I../deps/membrane_common_c/include -I./deps/membrane_common_c/include -I$(ERL_INCLUDE_PATH) -I$(OPUS_INCLUDE_PATH) -L$(OPUS_LIB_PATH) -lopus -dynamiclib -undefined dynamic_lookup -o membrane_element_opus_encoder.so c_src/util.c c_src/encoder.c
+	cc -fPIC -I../membrane_common_c/include -I./deps/membrane_common_c/include -I$(ERL_INCLUDE_PATH) -I$(OPUS_INCLUDE_PATH) -L$(OPUS_LIB_PATH) -lopus -dynamiclib -undefined dynamic_lookup -o membrane_element_opus_encoder.so c_src/util.c c_src/encoder.c
 
 priv/membrane_element_opus_decoder.so: c_src/decoder.c
-	cc -fPIC -I../deps/membrane_common_c/include -I./deps/membrane_common_c/include -I$(ERL_INCLUDE_PATH) -I$(OPUS_INCLUDE_PATH) -L$(OPUS_LIB_PATH) -lopus -dynamiclib -undefined dynamic_lookup -o membrane_element_opus_decoder.so c_src/util.c c_src/decoder.c
+	cc -fPIC -I../membrane_common_c/include -I./deps/membrane_common_c/include -I$(ERL_INCLUDE_PATH) -I$(OPUS_INCLUDE_PATH) -L$(OPUS_LIB_PATH) -lopus -dynamiclib -undefined dynamic_lookup -o membrane_element_opus_decoder.so c_src/util.c c_src/decoder.c
