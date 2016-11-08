@@ -16,12 +16,13 @@ defmodule Membrane.Element.Opus.Encoder do
   """
 
   use Membrane.Element.Base.Filter
-
-
-  def handle_prepare(%Membrane.Element.Opus.EncoderOptions{frame_size: frame_size, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application}) do
-    case Membrane.Element.Opus.EncoderNative.create(sample_rate, channels, application) do
+  alias Membrane.Element.Opus.EncoderNative
+  alias Membrane.Element.Opus.EncoderOptions
+  
+  def handle_prepare(%EncoderOptions{frame_size: frame_size, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application}) do
+    case EncoderNative.create(sample_rate, channels, application) do
       {:ok, native} ->
-        case Membrane.Element.Opus.EncoderNative.set_bitrate(native, bitrate) do
+        case EncoderNative.set_bitrate(native, bitrate) do
           :ok ->
             # Store size in samples and bytes of one packet for given Opus
             # frame size. This is later required both by encoder (it expects
@@ -99,7 +100,7 @@ defmodule Membrane.Element.Opus.Encoder do
 
   # Does the actual encoding of packet data that already has desired size.
   defp encode(native, packet_data, packet_size_in_samples) do
-    {:ok, encoded_data} = Membrane.Element.Opus.EncoderNative.encode_int(native, packet_data, packet_size_in_samples)
+    {:ok, encoded_data} = EncoderNative.encode_int(native, packet_data, packet_size_in_samples)
 
     {%Membrane.Caps{content: "audio/x-opus"}, encoded_data}
   end
