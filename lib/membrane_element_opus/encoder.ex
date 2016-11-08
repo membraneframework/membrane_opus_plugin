@@ -67,10 +67,10 @@ defmodule Membrane.Element.Opus.Encoder do
     cond do
       byte_size(data) > packet_size_in_bytes ->
         << packet_data :: binary-size(packet_size_in_bytes), rest :: binary >> = data
-        prepare_encoded_buffers(rest, packet_size_in_bytes, packet_size_in_samples, native, acc ++ [encode(packet_data, native, packet_size_in_samples)])
+        prepare_encoded_buffers(rest, packet_size_in_bytes, packet_size_in_samples, native, [encode(packet_data, native, packet_size_in_samples)|acc])
 
       byte_size(data) == packet_size_in_bytes ->
-        {acc ++ [encode(data, native, packet_size_in_samples)], << >>}
+        {[encode(data, native, packet_size_in_samples)|acc], << >>}
 
       byte_size(data) < packet_size_in_bytes ->
         {acc, data}
