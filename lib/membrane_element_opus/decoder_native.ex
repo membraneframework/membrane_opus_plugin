@@ -52,5 +52,5 @@ defmodule Membrane.Element.Opus.DecoderNative do
     {:ok, {bitstring, non_neg_integer}} |
     {:error, {:args, atom, String.t}} |
     {:error, {:decode_int, atom}}
-  def decode_int(_decoder, _input_payload, _decode_fec), do: "NIF fail"
+  def decode_int(_decoder, _input_payload, _decode_fec), do: raise "NIF fail"
 end

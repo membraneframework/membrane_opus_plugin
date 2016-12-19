@@ -100,5 +100,5 @@ defmodule Membrane.Element.Opus.EncoderNative do
     {:ok, bitstring} |
     {:error, {:args, atom, String.t}} |
     {:error, {:encode_int, atom}}
-  def encode_int(_encoder, _input_signal, _frame_size), do: "NIF fail"
+  def encode_int(_encoder, _input_signal, _frame_size), do: raise "NIF fail"
 end
