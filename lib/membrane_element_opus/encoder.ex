@@ -4,7 +4,16 @@ defmodule Membrane.Element.Opus.EncoderOptions do
     sample_rate: 48000, # TODO only 48kHz is supported at the moment
     channels:    2,     # TODO only stereo is supported at the moment
     application: :audio,
-    frame_size:  10     # one of 2.5, 5, 10, 20, 40, 60
+    frame_duration:  10     # one of 2.5, 5, 10, 20, 40, 60
+
+
+  @type t :: %Membrane.Element.Opus.EncoderOptions{
+    bitrate: non_neg_integer,
+    sample_rate: 48000,
+    channels: 2,
+    application: :audio | :voip | :restricted_lowdelay,
+    frame_duration: Membrane.Caps.Audio.Opus.frame_duration_t
+  }
 end
 
 
@@ -18,8 +27,26 @@ defmodule Membrane.Element.Opus.Encoder do
   use Membrane.Element.Base.Filter
   alias Membrane.Element.Opus.EncoderNative
   alias Membrane.Element.Opus.EncoderOptions
-  
-  def handle_prepare(%EncoderOptions{frame_size: frame_size, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application}) do
+
+
+  # Private API
+
+  @doc false
+  def handle_init(%EncoderOptions{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application}) do
+    {:ok, %{
+      frame_duration: frame_duration,
+      bitrate: bitrate,
+      sample_rate: sample_rate,
+      channels: channels,
+      application: application,
+      packet_size_in_samples: nil,
+      packet_size_in_bytes: nil,
+    }}
+  end
+
+
+  @doc false
+  def handle_prepare(%{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application} = state) do
     case EncoderNative.create(sample_rate, channels, application) do
       {:ok, native} ->
         case EncoderNative.set_bitrate(native, bitrate) do
@@ -34,32 +61,42 @@ defmodule Membrane.Element.Opus.Encoder do
             # of channels multiplied by 2 (Opus always uses 16-bit frames).
             #
             # TODO Hardcoded 2 channels, 48 kHz
-            packet_size_in_samples = packet_samples_count(sample_rate, frame_size);
+            packet_size_in_samples = packet_samples_count(sample_rate, frame_duration);
             packet_size_in_bytes = packet_size_in_samples * 2 * 2;
 
-            {:ok, %{
+            {:ok, %{state |
               native: native,
-              bitrate: bitrate,
               packet_size_in_samples: packet_size_in_samples,
               packet_size_in_bytes: packet_size_in_bytes,
               queue: << >>
             }}
 
           {:error, reason} ->
-            {:error, reason}
+            {:error, reason, %{state |
+              native: nil,
+              packet_size_in_samples: nil,
+              packet_size_in_bytes: nil,
+              queue: << >>
+            }}
         end
 
       {:error, reason} ->
-        {:error, reason}
+        {:error, reason, %{state |
+          native: nil,
+          packet_size_in_samples: nil,
+          packet_size_in_bytes: nil,
+          queue: << >>
+        }}
     end
   end
 
 
   # TODO support other sample rates and channels
-  def handle_buffer(%Membrane.Caps{content: "audio/x-raw", sample_rate: 48000, channels: 2, endianness: :le, frame_size: 2}, data, %{packet_size_in_samples: packet_size_in_samples, packet_size_in_bytes: packet_size_in_bytes, native: native, queue: queue} = state) do
+  @doc false
+  def handle_buffer(%Membrane.Buffer{caps: %Membrane.Caps.Audio.Raw{sample_rate: 48000, format: :s16le}, payload: payload}, %{packet_size_in_samples: packet_size_in_samples, packet_size_in_bytes: packet_size_in_bytes, native: native, queue: queue} = state) do
     # If we have more data in the buffer than required, split them as packets
     # of required size recursively. Keep the remaining buffer for future calls.
-    {encoded_buffers, new_queue} = prepare_encoded_buffers(queue <> data, packet_size_in_bytes, packet_size_in_samples, native, []);
+    {encoded_buffers, new_queue} = prepare_encoded_buffers(queue <> payload, packet_size_in_bytes, packet_size_in_samples, native, []);
 
     {:send_buffer, encoded_buffers, %{state | queue: new_queue}}
   end
@@ -102,6 +139,7 @@ defmodule Membrane.Element.Opus.Encoder do
   defp encode(native, packet_data, packet_size_in_samples) do
     {:ok, encoded_data} = EncoderNative.encode_int(native, packet_data, packet_size_in_samples)
 
-    {%Membrane.Caps{content: "audio/x-opus"}, encoded_data}
+    # FIXME
+    {%Membrane.Caps.Audio.Opus{}, encoded_data}
   end
 end

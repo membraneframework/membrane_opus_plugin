@@ -31,6 +31,7 @@ defmodule Membrane.Element.Opus.Mixfile do
   defp deps do
     [
       {:membrane_core, git: "git@bitbucket.org:radiokit/membrane-core.git"},
+      {:membrane_caps_audio_opus, git: "git@bitbucket.org:radiokit/membrane-caps-audio-opus.git"},
       {:membrane_common_c, git: "git@bitbucket.org:radiokit/membrane-common-c.git"},
     ]
   end

@@ -1,9 +1,13 @@
 defmodule Membrane.Element.Opus.DecoderOptions do
   defstruct \
     sample_rate: 48000, # TODO only 48kHz is supported at the moment
-    channels:    2,     # TODO only stereo is supported at the moment
-    frame_size:  10,    # one of 2.5, 5, 10, 20, 40, 60
-    fec:         false
+    channels:    2      # TODO only stereo is supported at the moment
+
+
+  @type t :: %Membrane.Element.Opus.DecoderOptions{
+    sample_rate: 48000,
+    channels: 2
+  }
 end
 
 
@@ -17,21 +21,33 @@ defmodule Membrane.Element.Opus.Decoder do
   alias Membrane.Element.Opus.DecoderOptions
 
 
-  def handle_prepare(%DecoderOptions{frame_size: frame_size, sample_rate: sample_rate, channels: channels}) do
-    case DecoderNative.create(sample_rate, channels, application) do
+  # Private API
+
+  @doc false
+  def handle_init(%DecoderOptions{sample_rate: sample_rate, channels: channels}) do
+    {:ok, %{
+      sample_rate: sample_rate,
+      channels: channels,
+      native: nil,
+      queue: << >>
+    }}
+  end
+
+
+  @doc false
+  def handle_prepare(%{sample_rate: sample_rate, channels: channels} = state) do
+    case DecoderNative.create(sample_rate, channels) do
       {:ok, native} ->
-        {:ok, %{
-          native: native,
-          queue: << >>
-        }}
+        {:ok, %{state | native: native}}
 
       {:error, reason} ->
-        {:error, reason}
+        {:error, reason, %{state | native: nil}}
     end
   end
 
 
-  def handle_buffer(%Membrane.Caps{content: "audio/x-opus"}, data, %{native: native, fec: fec, queue: queue} = state) do
+  @doc false
+  def handle_buffer(%Membrane.Buffer{caps: %Membrane.Caps.Audio.Opus{}, payload: payload}, %{native: native, fec: fec, queue: queue} = state) do
     # {:ok, {decoded_data, decoded_channels}} = DecoderNative.decoder_int(native, data, fec)
 
     # {:send_buffer, {%Membrane.Caps{content: "audio/x-raw", channels: decoded_channels}, decoded_data}
