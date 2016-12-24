@@ -1,4 +1,5 @@
 %{"membrane_caps_audio_opus": {:git, "git@bitbucket.org:radiokit/membrane-caps-audio-opus.git", "94aade9dc2ed787e75406245faf1a1722feb8c8b", []},
+  "membrane_caps_audio_raw": {:git, "git@bitbucket.org:radiokit/membrane-caps-audio-raw.git", "8560706c4a425251064de1a4093d305eb9cfdeed", []},
   "membrane_common_c": {:git, "git@bitbucket.org:radiokit/membrane-common-c.git", "c674bcdc37a076480115fc0bc900a36dd9655845", []},
-  "membrane_core": {:git, "git@bitbucket.org:radiokit/membrane-core.git", "3c34502eb7b364d9da44cf5be0c117e6d65924f6", []},
+  "membrane_core": {:git, "git@bitbucket.org:radiokit/membrane-core.git", "b0a0c884c2a88ec4e98cd618c4c1741f2354a155", []},
   "porcelain": {:hex, :porcelain, "2.0.2", "c1d4863de3e391195e36457bb3d7e17ee1bca5a44f1d708bc037c313342f58e9", [:mix], []}}

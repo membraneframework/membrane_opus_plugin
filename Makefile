@@ -1,4 +1,4 @@
-ERL_INCLUDE_PATH=/usr/local/Cellar/erlang/19.0.2/lib/erlang/usr/include/
+ERL_INCLUDE_PATH=/usr/local/Cellar/erlang/19.2/lib/erlang/usr/include/
 OPUS_INCLUDE_PATH=/usr/local/Cellar/opus/1.1.3/include/
 OPUS_LIB_PATH=/usr/local/Cellar/opus/1.1.3/lib/
 

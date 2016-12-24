@@ -169,45 +169,6 @@ static ERL_NIF_TERM export_set_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_T
 
 
 /**
- * Gets bitrate of given Opus encoder.
- *
- * Expects 2 arguments:
- *
- * - encoder resource
- *
- * On success, returns `:ok`.
- *
- * On bad arguments passed, returns `{:error, {:args, field, description}}`.
- *
- * On encode error, returns `{:error, {:set_bitrate, reason}}`.
- */
-static ERL_NIF_TERM export_get_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
-{
-  OpusEncoder *encoder;
-  int bitrate;
-  int error;
-
-
-  // Get encoder arg
-  if(!enif_get_resource(env, argv[0], RES_OPUS_ENCODER_TYPE, (void **) &encoder)) {
-    return membrane_util_make_error_args(env, "encoder", "Passed encoder is not valid resource");
-  }
-
-
-
-  // Get the bitrate
-  MEMBRANE_DEBUG("Getting bitrate from OpusEncoder %p", encoder);
-
-  error = opus_encoder_ctl(encoder, OPUS_GET_BITRATE(&bitrate));
-  if(error != OPUS_OK) {
-    return make_error_from_opus_error(env, "get_bitrate", error);
-  }
-
-  return membrane_util_make_ok_tuple(env, enif_make_int(env, bitrate));
-}
-
-
-/**
  * Encodes chunk of input signal that uses S16LE format.
  *
  * Expects 3 arguments:
@@ -281,7 +242,6 @@ static ErlNifFunc nif_funcs[] =
 {
   {"create", 3, export_create},
   {"set_bitrate", 2, export_set_bitrate},
-  {"get_bitrate", 1, export_get_bitrate},
   {"encode_int", 3, export_encode_int}
 };
 

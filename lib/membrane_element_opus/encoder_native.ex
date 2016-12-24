@@ -54,26 +54,6 @@ defmodule Membrane.Element.Opus.EncoderNative do
 
 
   @doc """
-  Gets bitrate from given Opus encoder.
-
-  Expects 1 argument:
-
-  - encoder resource.
-
-  On success, returns `{:ok, bitrate}`.
-
-  On bad arguments passed, returns `{:error, {:args, field, description}}`.
-
-  On error, returns `{:error, {:set_bitrate, reason}}`.
-  """
-  @spec get_bitrate(any) ::
-    :ok |
-    {:error, {:args, atom, String.t}} |
-    {:error, {:set_bitrate, atom}}
-  def get_bitrate(_encoder), do: raise "NIF fail"
-
-
-  @doc """
   Encodes chunk of input signal that uses S16LE format.
 
   Expects 3 arguments:
@@ -96,7 +76,7 @@ defmodule Membrane.Element.Opus.EncoderNative do
 
   On encode error, returns `{:error, {:encode, reason}}`.
   """
-  @spec encode_int(any, bitstring, non_neg_integer) ::
+  @spec encode_int(any, bitstring, pos_integer) ::
     {:ok, bitstring} |
     {:error, {:args, atom, String.t}} |
     {:error, {:encode_int, atom}}
