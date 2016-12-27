@@ -2,5 +2,12 @@
 /deps
 /test*
 /priv
+
+# NIF libraries
 *.so
 *.dll
+
+# Windows build mess
+/*.exp
+/*.lib
+/*.obj
