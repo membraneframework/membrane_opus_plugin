@@ -2,7 +2,16 @@
 /deps
 /test*
 /priv
+/doc
+
+# NIF libraries
 *.so
 *.dll
+
+# Mac mess
 .DS_Store
-/doc
+
+# Windows build mess
+/*.exp
+/*.lib
+/*.obj
