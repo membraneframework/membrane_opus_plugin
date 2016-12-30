@@ -1,5 +1,9 @@
-%{"membrane_caps_audio_opus": {:git, "git@bitbucket.org:radiokit/membrane-caps-audio-opus.git", "94aade9dc2ed787e75406245faf1a1722feb8c8b", []},
+%{"earmark": {:hex, :earmark, "1.0.3", "89bdbaf2aca8bbb5c97d8b3b55c5dd0cff517ecc78d417e87f1d0982e514557b", [:mix], []},
+  "espec": {:hex, :espec, "1.1.2", "d1cf60ee8f6fb8b0f1593097958762f870949238b0aa15788201728cb6e672dd", [:mix], [{:meck, "~> 0.8.4", [hex: :meck, optional: false]}]},
+  "ex_doc": {:hex, :ex_doc, "0.14.5", "c0433c8117e948404d93ca69411dd575ec6be39b47802e81ca8d91017a0cf83c", [:mix], [{:earmark, "~> 1.0", [hex: :earmark, optional: false]}]},
+  "meck": {:hex, :meck, "0.8.4", "59ca1cd971372aa223138efcf9b29475bde299e1953046a0c727184790ab1520", [:make, :rebar], []},
+  "membrane_caps_audio_opus": {:git, "git@bitbucket.org:radiokit/membrane-caps-audio-opus.git", "94aade9dc2ed787e75406245faf1a1722feb8c8b", []},
   "membrane_caps_audio_raw": {:git, "git@bitbucket.org:radiokit/membrane-caps-audio-raw.git", "8560706c4a425251064de1a4093d305eb9cfdeed", []},
   "membrane_common_c": {:git, "git@bitbucket.org:radiokit/membrane-common-c.git", "c674bcdc37a076480115fc0bc900a36dd9655845", []},
-  "membrane_core": {:git, "git@bitbucket.org:radiokit/membrane-core.git", "b0a0c884c2a88ec4e98cd618c4c1741f2354a155", []},
+  "membrane_core": {:git, "git@bitbucket.org:radiokit/membrane-core.git", "e440c27a06003ed5414cb78ce7800d804e6ffff9", []},
   "porcelain": {:hex, :porcelain, "2.0.2", "c1d4863de3e391195e36457bb3d7e17ee1bca5a44f1d708bc037c313342f58e9", [:mix], []}}

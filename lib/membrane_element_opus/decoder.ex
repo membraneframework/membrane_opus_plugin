@@ -8,6 +8,24 @@ defmodule Membrane.Element.Opus.Decoder do
   alias Membrane.Element.Opus.DecoderOptions
 
 
+  # TODO support float samples
+  def_known_source_pads %{
+    :sink => {:always, [
+      %Membrane.Caps.Audio.Raw{sample_rate: 48000, format: :s16le},
+      %Membrane.Caps.Audio.Raw{sample_rate: 24000, format: :s16le},
+      %Membrane.Caps.Audio.Raw{sample_rate: 16000, format: :s16le},
+      %Membrane.Caps.Audio.Raw{sample_rate: 12000, format: :s16le},
+      %Membrane.Caps.Audio.Raw{sample_rate: 8000,  format: :s16le},
+    ]}
+  }
+
+  def_known_sink_pads %{
+    :source => {:always, [
+      %Membrane.Caps.Audio.Opus{},
+    ]}
+  }
+
+
   # Private API
 
   @doc false
