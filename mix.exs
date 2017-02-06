@@ -11,7 +11,7 @@ defmodule Membrane.Element.Opus.Mixfile do
      maintainers: ["Marcin Lewandowski"],
      licenses: ["LGPL"],
      name: "Membrane Element: Opus",
-     source_url: "https://bitbucket.org/radiokit/membrane-element-opus",
+     source_url: "https://github.com/membraneframework/membrane-element-opus",
      preferred_cli_env: [espec: :test],
      deps: deps]
   end
@@ -30,10 +30,10 @@ defmodule Membrane.Element.Opus.Mixfile do
 
   defp deps do
     [
-      {:membrane_core, git: "git@bitbucket.org:radiokit/membrane-core.git"},
-      {:membrane_caps_audio_raw, git: "git@bitbucket.org:radiokit/membrane-caps-audio-raw.git"},
-      {:membrane_caps_audio_opus, git: "git@bitbucket.org:radiokit/membrane-caps-audio-opus.git"},
-      {:membrane_common_c, git: "git@bitbucket.org:radiokit/membrane-common-c.git"},
+      {:membrane_core, git: "git@github.com:membraneframework/membrane-core.git"},
+      {:membrane_caps_audio_raw, git: "git@github.com:membraneframework/membrane-caps-audio-raw.git"},
+      {:membrane_caps_audio_opus, git: "git@github.com:membraneframework/membrane-caps-audio-opus.git"},
+      {:membrane_common_c, git: "git@github.com:membraneframework/membrane-common-c.git"},
       {:espec, "~> 1.1.2", only: :test},
       {:ex_doc, "~> 0.14", only: :dev},
     ]
