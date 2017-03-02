@@ -50,7 +50,7 @@ defmodule Membrane.Element.Opus.Encoder do
 
   @doc false
   # FIXME move sample_rate/channels setup to new handle_caps
-  def handle_prepare(%{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application} = state) do
+  def handle_prepare(_prev_state, %{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application} = state) do
     case EncoderNative.create(sample_rate, channels, application) do
       {:ok, native} ->
         case EncoderNative.set_bitrate(native, bitrate) do
@@ -95,11 +95,11 @@ defmodule Membrane.Element.Opus.Encoder do
 
   # FIXME do not hardcode sample rate
   @doc false
-  def handle_buffer(%Membrane.Buffer{caps: %Membrane.Caps.Audio.Raw{sample_rate: 48000, format: :s16le}, payload: payload}, %{frame_size_in_bytes: frame_size_in_bytes, queue: queue} = state) do
+  def handle_buffer(:sink, %Membrane.Caps.Audio.Raw{sample_rate: 48000, format: :s16le}, %Membrane.Buffer{payload: payload}, %{frame_size_in_bytes: frame_size_in_bytes, queue: queue} = state) do
     {:ok, encoded_buffers, new_queue} = queue <> payload
       |> Bitstring.split_map(frame_size_in_bytes, &encode/2, [state])
 
-    {:send, encoded_buffers, %{state | queue: new_queue}}
+    {:ok, [{:send, {:source, %Membrane.Buffer{payload: encoded_buffers}}}], %{state | queue: new_queue}}
   end
 
 
@@ -150,16 +150,10 @@ defmodule Membrane.Element.Opus.Encoder do
 
   # Does the actual encoding of frame payload that already is split to parts
   # of the desired size.
-  defp encode(frame_payload, %{frame_size_in_samples: frame_size_in_samples, frame_duration: frame_duration, native: native}) do
+  defp encode(frame_payload, %{frame_size_in_samples: frame_size_in_samples, native: native}) do
     {:ok, encoded_payload} = native
       |> EncoderNative.encode_int(frame_payload, frame_size_in_samples)
 
-    %Membrane.Buffer{
-      caps: %Membrane.Caps.Audio.Opus{
-        channels: @channels,
-        frame_duration: frame_duration
-      },
-      payload: encoded_payload
-    }
+    %Membrane.Buffer{payload: encoded_payload}
   end
 end

@@ -40,7 +40,7 @@ defmodule Membrane.Element.Opus.Decoder do
 
 
   @doc false
-  def handle_prepare(%{sample_rate: sample_rate, channels: channels} = state) do
+  def handle_prepare(_prev_state, %{sample_rate: sample_rate, channels: channels} = state) do
     case DecoderNative.create(sample_rate, channels) do
       {:ok, native} ->
         {:ok, %{state | native: native}}
@@ -52,7 +52,7 @@ defmodule Membrane.Element.Opus.Decoder do
 
 
   @doc false
-  def handle_buffer(%Membrane.Buffer{caps: %Membrane.Caps.Audio.Opus{}, payload: payload}, %{native: native, fec: fec, queue: queue} = state) do
+  def handle_buffer(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Buffer{payload: payload}, %{native: native, fec: fec, queue: queue} = state) do
     # {:ok, {decoded_data, decoded_channels}} = DecoderNative.decoder_int(native, data, fec)
 
     # {:send_buffer, {%Membrane.Caps{content: "audio/x-raw", channels: decoded_channels}, decoded_data}
