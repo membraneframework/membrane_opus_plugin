@@ -44,6 +44,8 @@ defmodule Membrane.Element.Opus.Encoder do
       application: application,
       frame_size_in_samples: nil,
       frame_size_in_bytes: nil,
+      native: nil,
+      queue: << >>,
     }}
   end
 
@@ -96,10 +98,10 @@ defmodule Membrane.Element.Opus.Encoder do
   # FIXME do not hardcode sample rate
   @doc false
   def handle_buffer(:sink, %Membrane.Caps.Audio.Raw{sample_rate: 48000, format: :s16le}, %Membrane.Buffer{payload: payload}, %{frame_size_in_bytes: frame_size_in_bytes, queue: queue} = state) do
-    {:ok, encoded_buffers, new_queue} = queue <> payload
+    {:ok, {commands, new_queue}} = queue <> payload
       |> Bitstring.split_map(frame_size_in_bytes, &encode/2, [state])
 
-    {:ok, [{:send, {:source, %Membrane.Buffer{payload: encoded_buffers}}}], %{state | queue: new_queue}}
+    {:ok, commands, %{state | queue: new_queue}}
   end
 
 
@@ -154,6 +156,7 @@ defmodule Membrane.Element.Opus.Encoder do
     {:ok, encoded_payload} = native
       |> EncoderNative.encode_int(frame_payload, frame_size_in_samples)
 
-    %Membrane.Buffer{payload: encoded_payload}
+    command = {:send, {:source, %Membrane.Buffer{payload: encoded_payload}}}
+    {:ok, command}
   end
 end
