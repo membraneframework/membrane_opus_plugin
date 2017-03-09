@@ -152,11 +152,11 @@ defmodule Membrane.Element.Opus.Encoder do
 
   # Does the actual encoding of frame payload that already is split to parts
   # of the desired size.
-  defp encode(frame_payload, %{frame_size_in_samples: frame_size_in_samples, native: native}) do
+  defp encode(frame_payload, %{frame_size_in_samples: frame_size_in_samples, native: native, frame_duration: frame_duration}) do
     {:ok, encoded_payload} = native
       |> EncoderNative.encode_int(frame_payload, frame_size_in_samples)
 
-    command = {:send, {:source, %Membrane.Buffer{payload: encoded_payload}}}
+    command = {:send, {:source, %Membrane.Buffer{payload: encoded_payload, metadata: %{frame_duration: frame_duration}}}}
     {:ok, command}
   end
 end
