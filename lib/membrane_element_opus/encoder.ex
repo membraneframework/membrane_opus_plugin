@@ -68,12 +68,16 @@ defmodule Membrane.Element.Opus.Encoder do
             frame_size_in_samples = frame_samples_count(sample_rate, frame_duration)
             frame_size_in_bytes = frame_size_in_samples * @channels * @sample_size_in_bytes
 
-            {:ok, %{state |
-              native: native,
-              frame_size_in_samples: frame_size_in_samples,
-              frame_size_in_bytes: frame_size_in_bytes,
-              queue: << >>
-            }}
+            {
+              :ok,
+              [{:caps, {:source, %Membrane.Caps.Audio.Opus{frame_duration: frame_duration}}}],
+              %{state |
+                native: native,
+                frame_size_in_samples: frame_size_in_samples,
+                frame_size_in_bytes: frame_size_in_bytes,
+                queue: << >>
+              }
+            }
 
           {:error, reason} ->
             {:error, reason, %{state |
@@ -152,11 +156,11 @@ defmodule Membrane.Element.Opus.Encoder do
 
   # Does the actual encoding of frame payload that already is split to parts
   # of the desired size.
-  defp encode(frame_payload, %{frame_size_in_samples: frame_size_in_samples, native: native, frame_duration: frame_duration}) do
+  defp encode(frame_payload, %{frame_size_in_samples: frame_size_in_samples, native: native}) do
     {:ok, encoded_payload} = native
       |> EncoderNative.encode_int(frame_payload, frame_size_in_samples)
 
-    command = {:send, {:source, %Membrane.Buffer{payload: encoded_payload, metadata: %{frame_duration: frame_duration}}}}
+    command = {:send, {:source, %Membrane.Buffer{payload: encoded_payload}}}
     {:ok, command}
   end
 end
