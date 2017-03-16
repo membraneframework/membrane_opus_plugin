@@ -10,7 +10,7 @@ defmodule Membrane.Element.Opus.Decoder do
 
   # TODO support float samples
   def_known_source_pads %{
-    :sink => {:always, [
+    :source => {:always, [
       %Membrane.Caps.Audio.Raw{sample_rate: 48000, format: :s16le},
       %Membrane.Caps.Audio.Raw{sample_rate: 24000, format: :s16le},
       %Membrane.Caps.Audio.Raw{sample_rate: 16000, format: :s16le},
@@ -20,7 +20,7 @@ defmodule Membrane.Element.Opus.Decoder do
   }
 
   def_known_sink_pads %{
-    :source => {:always, [
+    :sink => {:always, [
       %Membrane.Caps.Audio.Opus{},
     ]}
   }
@@ -34,16 +34,17 @@ defmodule Membrane.Element.Opus.Decoder do
       sample_rate: sample_rate,
       channels: channels,
       native: nil,
-      queue: << >>
+      fec: false,
     }}
   end
 
 
   @doc false
   def handle_prepare(_prev_state, %{sample_rate: sample_rate, channels: channels} = state) do
-    case DecoderNative.create(sample_rate, channels) do
+    case DecoderNative.create(sample_rate,  channels) do
       {:ok, native} ->
-        {:ok, %{state | native: native}}
+        command = [{:caps, {:source, %Membrane.Caps.Audio.Raw{sample_rate: sample_rate, channels: channels, format: :s16le}}}]
+        {:ok, command, %{state | native: native}}
 
       {:error, reason} ->
         {:error, reason, %{state | native: nil}}
@@ -52,11 +53,9 @@ defmodule Membrane.Element.Opus.Decoder do
 
 
   @doc false
-  def handle_buffer(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Buffer{payload: payload}, %{native: native, fec: fec, queue: queue} = state) do
-    # {:ok, {decoded_data, decoded_channels}} = DecoderNative.decoder_int(native, data, fec)
+  def handle_buffer(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Buffer{payload: payload}, %{native: native, fec: fec} = state) do
+    {:ok, {decoded_data, _decoded_channels}} = DecoderNative.decode_int(native, payload, fec)
 
-    # {:send_buffer, {%Membrane.Caps{content: "audio/x-raw", channels: decoded_channels}, decoded_data}
-
-    {:ok, state} # TODO
+    {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], state}
   end
 end

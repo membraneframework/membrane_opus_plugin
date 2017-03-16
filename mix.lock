@@ -6,5 +6,5 @@
   "membrane_caps_audio_opus": {:git, "git@github.com:membraneframework/membrane-caps-audio-opus.git", "75989c0d6f270e13b3a6b2293b69a98a4db515a2", []},
   "membrane_caps_audio_raw": {:git, "git@github.com:membraneframework/membrane-caps-audio-raw.git", "2b9e42f787dc272e72755d6fbce7d4315d3a33eb", []},
   "membrane_common_c": {:git, "git@github.com:membraneframework/membrane-common-c.git", "dcf201254913ef9c8afbd93e6bf26cf629b961bd", []},
-  "membrane_core": {:git, "git@github.com:membraneframework/membrane-core.git", "d3eb236ef49872d042fa749077e311afbcb96b86", []},
+  "membrane_core": {:git, "git@github.com:membraneframework/membrane-core.git", "50a7ebf8a78b85342adbf87b7faa245002e2291d", []},
   "porcelain": {:hex, :porcelain, "2.0.2", "c1d4863de3e391195e36457bb3d7e17ee1bca5a44f1d708bc037c313342f58e9", [:mix], []}}
