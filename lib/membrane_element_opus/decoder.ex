@@ -53,8 +53,8 @@ defmodule Membrane.Element.Opus.Decoder do
 
 
   @doc false
-  def handle_buffer(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Buffer{payload: payload}, %{native: native, fec: fec} = state) do
-    {:ok, {decoded_data, _decoded_channels}} = DecoderNative.decode_int(native, payload, fec)
+  def handle_buffer(:sink, nil, %Membrane.Buffer{payload: payload}, %{native: native, fec: fec} = state) do
+    {:ok, {decoded_data, _decoded_channels}} = DecoderNative.decode_int(native, payload, 0, 0)
 
     {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], state}
   end

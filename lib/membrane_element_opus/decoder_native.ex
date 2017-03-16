@@ -40,7 +40,8 @@ defmodule Membrane.Element.Opus.DecoderNative do
 
   - decoder resource
   - input payload (bitstring), pass nil to indicate data loss
-  - whether to decode FEC (boolean)
+  - whether to decode FEC (0 - false, 1 - true)
+  - missing_frame_duration (0 if no frame is missing)
 
   On success, returns `{:ok, {data, channels}}`.
 
@@ -48,9 +49,9 @@ defmodule Membrane.Element.Opus.DecoderNative do
 
   On decode error, returns `{:error, {:decode, reason}}`.
   """
-  @spec decode_int(any, bitstring, boolean) ::
+  @spec decode_int(any, bitstring, non_neg_integer, non_neg_integer) ::
     {:ok, {bitstring, non_neg_integer}} |
     {:error, {:args, atom, String.t}} |
     {:error, {:decode_int, atom}}
-  def decode_int(_decoder, _input_payload, _decode_fec), do: raise "NIF fail"
+  def decode_int(_decoder, _input_payload, _decode_fec, _missing_frame_duration), do: raise "NIF fail"
 end

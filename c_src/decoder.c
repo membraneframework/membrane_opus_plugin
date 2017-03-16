@@ -4,31 +4,23 @@
  * All Rights Reserved, (c) 2016 Marcin Lewandowski
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <erl_nif.h>
-#include <opus/opus.h>
-#include <membrane/membrane.h>
-#include "util.h"
-
-#define MEMBRANE_LOG_TAG "Membrane.Element.Opus.DecoderNative"
-
-#define OPUS_DECODED_SIGNAL_MAX_BYTES 23040
-#define OPUS_DECODED_SIGNAL_MAX_FRAMES 5760
-
-ErlNifResourceType *RES_OPUS_DECODER_TYPE;
+#include "decoder.h"
 
 
-void res_opus_decoder_destructor(ErlNifEnv *env, void *decoder) {
-  MEMBRANE_DEBUG("Destroying OpusDecoder %p", decoder);
-  opus_decoder_destroy((OpusDecoder *) decoder);
+ErlNifResourceType *RES_OPUS_DECODER_HANDLE_TYPE;
+
+
+void res_opus_decoder_handle_destructor(ErlNifEnv *env, void *data) {
+  DecoderHandle *handle = (DecoderHandle *)data;
+  MEMBRANE_DEBUG("Destroying OpusDecoder %p", handle->decoder);
+  opus_decoder_destroy(handle->decoder);
 }
 
 
 int load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info) {
   int flags = ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER;
-  RES_OPUS_DECODER_TYPE =
-    enif_open_resource_type(env, NULL, "OpusDecoder", res_opus_decoder_destructor, flags, NULL);
+  RES_OPUS_DECODER_HANDLE_TYPE =
+    enif_open_resource_type(env, NULL, "OpusDecoder", res_opus_decoder_handle_destructor, flags, NULL);
 
   return 0;
 }
@@ -52,7 +44,6 @@ int load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info) {
  */
 static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-  OpusDecoder* enc;
   int          error;
   int          channels;
   int          sample_rate;
@@ -79,20 +70,26 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
 
 
+  // Create DecoderHandle
+  DecoderHandle* handle = enif_alloc_resource(RES_OPUS_DECODER_HANDLE_TYPE, sizeof(DecoderHandle));
+  handle->decoder = malloc(opus_decoder_get_size(channels));
+  handle->channels = channels;
+  handle->sample_rate = sample_rate;
+
   // Create decoder
-  OpusDecoder *decoder = enif_alloc_resource(RES_OPUS_DECODER_TYPE, opus_decoder_get_size(channels));
-  MEMBRANE_DEBUG("Creating OpusDecoder %p, sample rate = %d Hz, channels = %d", decoder, sample_rate, channels);
-  error = opus_decoder_init(decoder, sample_rate, channels);
+  MEMBRANE_DEBUG("Creating OpusDecoder %p, sample rate = %d Hz, channels = %d", handle->decoder, sample_rate, channels);
+  error = opus_decoder_init(handle->decoder, sample_rate, channels);
   if(error != OPUS_OK) {
-    enif_release_resource(decoder);
+    free(handle->decoder);
+    enif_release_resource(handle);
     return membrane_util_make_error(env, make_error_from_opus_error(env, "create", error));
   }
 
   // Wrap decoder into Erlang Resource
-  ERL_NIF_TERM decoder_term = enif_make_resource(env, decoder);
-  enif_release_resource(decoder);
+  ERL_NIF_TERM handle_term = enif_make_resource(env, handle);
+  enif_release_resource(handle);
 
-  return membrane_util_make_ok_tuple(env, decoder_term);
+  return membrane_util_make_ok_tuple(env, handle_term);
 }
 
 
@@ -101,9 +98,10 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
  *
  * Expects 3 arguments:
  *
- * - decoder resource
+ * - decoder_handle resource
  * - input payload (bitstring), pass nil to indicate data loss
  * - whether to decode FEC (boolean)
+ * - duration of the missing frame in milliseconds (or 0 if no frame is missing)
  *
  * On success, returns `{:ok, {data, channels}}`.
  *
@@ -113,13 +111,14 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
  */
 static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-  OpusDecoder *decoder;
+  DecoderHandle *handle;
   ErlNifBinary input_payload_binary;
-
+  int decode_fec;
+  int missing_frame_duration;
 
   // Get decoder arg
-  if(!enif_get_resource(env, argv[0], RES_OPUS_DECODER_TYPE, (void **) &decoder)) {
-    return membrane_util_make_error_args(env, "decoder", "Passed decoder is not valid resource");
+  if(!enif_get_resource(env, argv[0], RES_OPUS_DECODER_HANDLE_TYPE, (void **) &handle)) {
+    return membrane_util_make_error_args(env, "decoder_handle", "Passed decoder_handle is not valid resource");
   }
 
 
@@ -132,12 +131,31 @@ static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 
   // Get decode FEC arg
-  // TODO
+  if(!enif_get_int(env, argv[2], &decode_fec)) {
+    return membrane_util_make_error_args(env, "decode_fec", "Passed decode_fec in not valid integer");
+  }
+
+
+  // Get missing_frame_duration arg
+  if(!enif_get_int(env, argv[3], &missing_frame_duration)) {
+    return membrane_util_make_error_args(env, "missing_frame_duration", "Passed missing_frame_duration in not valid integer");
+  }
 
 
   // Allocate temporary storage for the output, let's allocate maximum allowed
-  // by Opus (120ms of data for 48kHz = 5760 frames stereo)
-  opus_int16 *decoded_signal_data_temp = malloc(OPUS_DECODED_SIGNAL_MAX_BYTES);
+  // by Opus (for 120ms of data) or exact size of audio that is missing
+  size_t output_size;
+
+  if(!missing_frame_duration) {
+    output_size = (BYTES_PER_OUTPUT_SAMPLE * handle->channels *
+      handle->sample_rate * OPUS_FRAME_MAX_DURATION) / 1000;
+  } else {
+    output_size = (BYTES_PER_OUTPUT_SAMPLE * handle->channels *
+      handle->sample_rate * missing_frame_duration) / 1000;
+  }
+
+  opus_int16 *decoded_signal_data_temp = malloc(output_size);
+
 
   // Decode
   int channels = opus_packet_get_nb_channels(input_payload_binary.data);
@@ -145,7 +163,7 @@ static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
     return make_error_from_opus_error(env, "decode", channels);
   }
 
-  int decoded_samples = opus_decode(decoder, input_payload_binary.data, input_payload_binary.size, decoded_signal_data_temp, OPUS_DECODED_SIGNAL_MAX_FRAMES, 0); // FIXME FEC
+  int decoded_samples = opus_decode(handle->decoder, input_payload_binary.data, input_payload_binary.size, decoded_signal_data_temp, output_size, decode_fec);
   if(decoded_samples < 0) {
     free(decoded_signal_data_temp);
     return make_error_from_opus_error(env, "decode", decoded_samples);
@@ -170,7 +188,7 @@ static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
 static ErlNifFunc nif_funcs[] =
 {
   {"create", 2, export_create},
-  {"decode_int", 3, export_decode_int}
+  {"decode_int", 4, export_decode_int}
 };
 
 ERL_NIF_INIT(Elixir.Membrane.Element.Opus.DecoderNative, nif_funcs, load, NULL, NULL, NULL)
