@@ -34,7 +34,8 @@ defmodule Membrane.Element.Opus.Decoder do
       sample_rate: sample_rate,
       channels: channels,
       native: nil,
-      fec: false,
+      decode_fec: false,
+      missing_frame_duration: 0, # ms
     }}
   end
 
@@ -53,9 +54,26 @@ defmodule Membrane.Element.Opus.Decoder do
 
 
   @doc false
-  def handle_buffer(:sink, nil, %Membrane.Buffer{payload: payload}, %{native: native, fec: fec} = state) do
-    {:ok, {decoded_data, _decoded_channels}} = DecoderNative.decode_int(native, payload, 0, 0)
+  def handle_buffer(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Buffer{payload: payload}, %{native: native, decode_fec: decode_fec, missing_frame_duration: missing_frame_duration} = state) do
+    nif_decode_fec = if decode_fec, do: 1, else: 0
 
-    {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], state}
+    {:ok, {decoded_data, _decoded_channels}} = DecoderNative.decode_int(native, payload, nif_decode_fec, missing_frame_duration)
+
+    {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], %{state | missing_frame_duration: 0, decode_fec: false}}
   end
+
+
+  @doc false
+  def handle_event(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Event{type: :discontinuity, payload: %{duration: duration}}, %{native: native, decode_fec: decode_fec, missing_frame_duration: missing_frame_duration} = state) do
+
+    # case decode_fec do
+    #   true ->
+    #     {:ok, {decoded_data, _decoded_channels}} = DecoderNative.decode_int(native, <<>>, 1, missing_frame_duration)
+    #     {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], %{state | missing_frame_duration: duration}}
+    #   false ->
+    #     {:ok, %{state | decode_fec: true, missing_frame_duration: duration / 1_000_000}}
+    # end
+    {:ok, state}
+  end
+
 end

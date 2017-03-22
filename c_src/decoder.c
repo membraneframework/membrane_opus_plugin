@@ -158,7 +158,7 @@ static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 
   // Decode
-  int channels = opus_packet_get_nb_channels(input_payload_binary.data);
+  int channels = handle->channels;
   if(channels < 0) {
     return make_error_from_opus_error(env, "decode", channels);
   }
