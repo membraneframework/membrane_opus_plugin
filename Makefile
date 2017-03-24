@@ -1,6 +1,6 @@
-ERL_INCLUDE_PATH_DARWIN=/usr/local/Cellar/erlang/19.2/lib/erlang/usr/include/
-OPUS_INCLUDE_PATH_DARWIN=/usr/local/Cellar/opus/1.1.3/include/
-OPUS_LIB_PATH_DARWIN=/usr/local/Cellar/opus/1.1.3/lib/
+ERL_INCLUDE_PATH_DARWIN=/usr/local/Cellar/erlang/19.3/lib/erlang/usr/include/
+OPUS_INCLUDE_PATH_DARWIN=/usr/local/Cellar/opus/1.1.4/include/
+OPUS_LIB_PATH_DARWIN=/usr/local/Cellar/opus/1.1.4/lib/
 
 ERL_INCLUDE_PATH_WINDOWS="c:\\Program Files\\erl8.0\\erts-8.0\\include"
 OPUS_INCLUDE_PATH_WINDOWS=".\\ext\\include"
