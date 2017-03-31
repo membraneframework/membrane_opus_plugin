@@ -35,7 +35,7 @@ defmodule Membrane.Element.Opus.Encoder do
   # Private API
 
   @doc false
-  def handle_init(%EncoderOptions{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application}) do
+  def handle_init(%EncoderOptions{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application, enable_fec: enable_fec}) do
     {:ok, %{
       frame_duration: frame_duration,
       bitrate: bitrate,
@@ -46,14 +46,15 @@ defmodule Membrane.Element.Opus.Encoder do
       frame_size_in_bytes: nil,
       native: nil,
       queue: << >>,
+      enable_fec: if(enable_fec, do: 1, else: 0),
     }}
   end
 
 
   @doc false
   # FIXME move sample_rate/channels setup to new handle_caps
-  def handle_prepare(_prev_state, %{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application} = state) do
-    case EncoderNative.create(sample_rate, channels, application) do
+  def handle_prepare(_prev_state, %{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application, enable_fec: enable_fec} = state) do
+    case EncoderNative.create(sample_rate, channels, application, enable_fec) do
       {:ok, native} ->
         case EncoderNative.set_bitrate(native, bitrate) do
           :ok ->

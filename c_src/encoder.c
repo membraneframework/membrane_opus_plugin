@@ -40,11 +40,12 @@ int load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info) {
 /**
  * Creates Opus encoder.
  *
- * Expects 3 arguments:
+ * Expects 4 arguments:
  *
  * - sample rate (integer, one of 8000, 12000, 16000, 24000, or 48000)
  * - channels (integer, 1 or 2)
  * - application (atom, one of `:voip`, `:audio` or `:restricted_lowdelay`).
+ * - enable_fec (integer, 1(fec ON) or 2(fec OFF))
  *
  * On success, returns `{:ok, resource}`.
  *
@@ -60,6 +61,7 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
   int          sample_rate;
   char         application_atom[APPLICATION_ATOM_LEN];
   int          application;
+  int          enable_fec;
 
 
   // Get sample rate arg
@@ -100,11 +102,18 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
     return membrane_util_make_error_args(env, "application", "Passed sample rate must be one of :voip, :audio or :restricted_lowdelay");
   }
 
+  // Get enable_fec arg
+  if(!enif_get_int(env, argv[3], &enable_fec)) {
+    return membrane_util_make_error_args(env, "enable_fec", "Passed enable_fec is out of integer range or is not an integer");
+  }
+
 
   // Create encoder
   OpusEncoder *encoder = enif_alloc_resource(RES_OPUS_ENCODER_TYPE, opus_encoder_get_size(channels));
   MEMBRANE_DEBUG("Creating OpusEncoder %p, sample rate = %d Hz, channels = %d, application = %d", encoder, sample_rate, channels, application);
   error = opus_encoder_init(encoder, sample_rate, channels, application);
+  opus_encoder_ctl(encoder, OPUS_SET_INBAND_FEC(enable_fec));
+
   if(error != OPUS_OK) {
     enif_release_resource(encoder);
     return membrane_util_make_error(env, make_error_from_opus_error(env, "create", error));

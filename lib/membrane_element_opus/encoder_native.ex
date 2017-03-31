@@ -20,6 +20,7 @@ defmodule Membrane.Element.Opus.EncoderNative do
   - sample rate (integer, one of 8000, 12000, 16000, 24000, or 48000)
   - channels (integer, 1 or 2)
   - application (atom, one of `:voip`, `:audio` or `:restricted_lowdelay`).
+  - enable_fec (integer, 1(fec ON) or 2(fec OFF))
 
   On success, returns `{:ok, resource}`.
 
@@ -27,11 +28,11 @@ defmodule Membrane.Element.Opus.EncoderNative do
 
   On encoder initialization error, returns `{:error, {:internal, reason}}`.
   """
-  @spec create(non_neg_integer, non_neg_integer, :voip | :audio | :restricted_lowdelay) ::
+  @spec create(non_neg_integer, non_neg_integer, :voip | :audio | :restricted_lowdelay, non_neg_integer) ::
     {:ok, any} |
     {:error, {:args, atom, String.t}} |
     {:error, {:internal, atom}}
-  def create(_sample_rate, _channels, _application), do: raise "NIF fail"
+  def create(_sample_rate, _channels, _application, _enable_fec), do: raise "NIF fail"
 
 
   @doc """
