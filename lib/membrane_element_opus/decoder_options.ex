@@ -19,9 +19,9 @@ defmodule Membrane.Element.Opus.DecoderOptions do
   """
 
   defstruct \
-    sample_rate: 48000,
-    channels:    2,
-    fec:         false
+    sample_rate:  48000,
+    channels:     2,
+    enable_fec:   true
 
 
   @type sample_rate_t :: Membrane.Caps.Audio.Opus.sample_rate_t
@@ -29,6 +29,6 @@ defmodule Membrane.Element.Opus.DecoderOptions do
   @type t :: %Membrane.Element.Opus.DecoderOptions{
     sample_rate: sample_rate_t,
     channels: 2,
-    fec: boolean
+    enable_fec: boolean
   }
 end
