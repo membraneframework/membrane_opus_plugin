@@ -178,6 +178,56 @@ static ERL_NIF_TERM export_set_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_T
 
 
 /**
+ * Sets expected packet loss percentage of given Opus encoder.
+ *
+ * Expects 2 arguments:
+ *
+ * - encoder resource
+ * - packet loss percentage (integer) in range <0, 100>.
+ *
+ * On success, returns `:ok`.
+ *
+ * On bad arguments passed, returns `{:error, {:args, field, description}}`.
+ *
+ * On encode error, returns `{:error, {:set_packet_loss_perc, reason}}`.
+ */
+static ERL_NIF_TERM export_set_packet_loss_perc(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+  OpusEncoder *encoder;
+  int packet_loss_perc;
+  int error;
+
+
+  // Get encoder arg
+  if(!enif_get_resource(env, argv[0], RES_OPUS_ENCODER_TYPE, (void **) &encoder)) {
+    return membrane_util_make_error_args(env, "encoder", "Passed encoder is not valid resource");
+  }
+
+
+
+  // Get packet_loss_perc arg
+  if(!enif_get_int(env, argv[1], &packet_loss_perc)) {
+    return membrane_util_make_error_args(env, "packet_loss_perc", "Passed packet_loss_perc is out of integer range or is not an integer");
+  }
+
+  if(packet_loss_perc < 0 || packet_loss_perc > 1000) {
+    return membrane_util_make_error_args(env, "packet_loss_perc", "Passed packet_loss_perc must be betwen 0 and 100");
+  }
+
+
+  // Set the packet_loss_perc
+  MEMBRANE_DEBUG("Setting packet_loss_perc on OpusEncoder %p to %d", encoder, packet_loss_perc);
+
+  error = opus_encoder_ctl(encoder, OPUS_SET_PACKET_LOSS_PERC(packet_loss_perc));
+  if(error != OPUS_OK) {
+    return make_error_from_opus_error(env, "set_packet_loss_perc", error);
+  }
+
+  return membrane_util_make_ok(env);
+}
+
+
+/**
  * Encodes chunk of input signal that uses S16LE format.
  *
  * Expects 3 arguments:
@@ -249,9 +299,10 @@ static ERL_NIF_TERM export_encode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ErlNifFunc nif_funcs[] =
 {
-  {"create", 3, export_create},
+  {"create", 4, export_create},
   {"set_bitrate", 2, export_set_bitrate},
-  {"encode_int", 3, export_encode_int}
+  {"encode_int", 3, export_encode_int},
+  {"set_packet_loss_perc", 2, export_set_packet_loss_perc},
 };
 
 ERL_NIF_INIT(Elixir.Membrane.Element.Opus.EncoderNative, nif_funcs, load, NULL, NULL, NULL)

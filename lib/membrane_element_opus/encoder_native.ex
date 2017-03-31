@@ -55,6 +55,24 @@ defmodule Membrane.Element.Opus.EncoderNative do
 
 
   @doc """
+  Sets expected packet loss percentage of given Opus encoder.
+
+  Expects 2 arguments:
+  - encoder resource
+  - packet loss percentage (integer) in range <0, 100>.
+
+  On success, returns `:ok`.
+
+  On bad arguments passed, returns `{:error, {:args, field, description}}`.
+
+  On encode error, returns `{:error, {:set_packet_loss_perc, reason}}`.
+  """
+  @spec set_packet_loss_perc(any, non_neg_integer) ::
+    :ok | {:error, {:args, atom, String.t}} | {:error, {:set_packet_loss_perc, atom}}
+  def set_packet_loss_perc(_encoder, _packet_loss_perc), do: raise "NIF fail"
+
+
+  @doc """
   Encodes chunk of input signal that uses S16LE format.
 
   Expects 3 arguments:

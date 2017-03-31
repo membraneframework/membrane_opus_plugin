@@ -33,7 +33,8 @@ defmodule Membrane.Element.Opus.EncoderOptions do
     channels:       2,
     application:    :audio,
     frame_duration: 10,
-    packet_loss:    0
+    packet_loss:    0,
+    enable_fec:     true
 
 
   @type bitrate_t        :: Membrane.Caps.Audio.Opus.bitrate_t
@@ -42,6 +43,7 @@ defmodule Membrane.Element.Opus.EncoderOptions do
   @type application_t    :: Membrane.Caps.Audio.Opus.application_t
   @type frame_duration_t :: Membrane.Caps.Audio.Opus.frame_duration_t
   @type packet_loss_t    :: Membrane.Caps.Audio.Opus.packet_loss_t
+  @type enable_fec_t       :: boolean
 
   @type t :: %Membrane.Element.Opus.EncoderOptions{
     bitrate: bitrate_t,
@@ -49,6 +51,7 @@ defmodule Membrane.Element.Opus.EncoderOptions do
     channels: channels_t,
     application: application_t,
     frame_duration: frame_duration_t,
-    packet_loss: packet_loss_t
+    packet_loss: packet_loss_t,
+    enable_fec: enable_fec_t,
   }
 end
