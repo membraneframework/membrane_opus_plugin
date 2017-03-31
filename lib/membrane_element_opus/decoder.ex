@@ -6,7 +6,7 @@ defmodule Membrane.Element.Opus.Decoder do
   use Membrane.Element.Base.Filter
   alias Membrane.Element.Opus.DecoderNative
   alias Membrane.Element.Opus.DecoderOptions
-
+  use Membrane.Mixins.Log
 
   # TODO support float samples
   def_known_source_pads %{
@@ -34,8 +34,8 @@ defmodule Membrane.Element.Opus.Decoder do
       sample_rate: sample_rate,
       channels: channels,
       native: nil,
-      decode_fec: false,
-      missing_frame_duration: 0, # ms
+      prev_payload: nil,
+      prev_frame_duration: nil,
     }}
   end
 
@@ -54,26 +54,53 @@ defmodule Membrane.Element.Opus.Decoder do
 
 
   @doc false
-  def handle_buffer(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Buffer{payload: payload}, %{native: native, decode_fec: decode_fec, missing_frame_duration: missing_frame_duration} = state) do
-    nif_decode_fec = if decode_fec, do: 1, else: 0
+  def handle_buffer(:sink, %Membrane.Caps.Audio.Opus{frame_duration: frame_duration}, %Membrane.Buffer{payload: payload}, %{native: native, prev_frame_duration: prev_frame_duration, prev_payload: prev_payload} = state) do
 
-    {:ok, {decoded_data, _decoded_channels}} = DecoderNative.decode_int(native, payload, nif_decode_fec, missing_frame_duration)
+    decoded_data = case {prev_payload, prev_frame_duration} do
+      # first buffer. delay by one packet
+      {nil, nil} ->
+        {:ok, %{state | prev_payload: payload, prev_frame_duration: frame_duration}}
 
-    {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], %{state | missing_frame_duration: 0, decode_fec: false}}
+      # previous frame is missing
+      # use FEC
+      {nil, _} ->
+        {:ok, decoded_data} = DecoderNative.decode_int(native, payload, 1, prev_frame_duration)
+        decoded_data
+
+      # previous frame is present
+      # regular decode
+      _ ->
+        {:ok, decoded_data} = DecoderNative.decode_int(native, prev_payload, 0, prev_frame_duration)
+        decoded_data
+    end
+
+    {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], %{state | prev_frame_duration: frame_duration, prev_payload: payload}}
   end
 
 
   @doc false
-  def handle_event(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Event{type: :discontinuity, payload: %{duration: duration}}, %{native: native, decode_fec: decode_fec, missing_frame_duration: missing_frame_duration} = state) do
+  def handle_event(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Event{type: :discontinuity, payload: %{duration: duration}}, %{native: native, prev_payload: prev_payload, prev_frame_duration: prev_frame_duration} = state) do
+    
+    decoded_data = case {prev_payload, prev_frame_duration} do
 
-    # case decode_fec do
-    #   true ->
-    #     {:ok, {decoded_data, _decoded_channels}} = DecoderNative.decode_int(native, <<>>, 1, missing_frame_duration)
-    #     {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], %{state | missing_frame_duration: duration}}
-    #   false ->
-    #     {:ok, %{state | decode_fec: true, missing_frame_duration: duration / 1_000_000}}
-    # end
-    {:ok, state}
+      # received discontinuity before any valid frame
+      {nil, nil} ->
+        {:ok, state}
+
+      # both actual and previous frames are missing
+      # use PLC
+      {nil, _} ->
+        {:ok, decoded_data} = DecoderNative.decode_int(native, <<>>, 1, prev_frame_duration)
+        decoded_data
+
+      # previous frame is present
+      # regular decode
+      _ ->
+        {:ok, decoded_data} = DecoderNative.decode_int(native, prev_payload, 0, prev_frame_duration)
+        decoded_data
+    end
+
+    {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], %{state | prev_frame_duration: duration / 1_000_000 |> trunc, prev_payload: nil}}
   end
 
 end

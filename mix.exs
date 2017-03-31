@@ -13,7 +13,7 @@ defmodule Membrane.Element.Opus.Mixfile do
      name: "Membrane Element: Opus",
      source_url: "https://github.com/membraneframework/membrane-element-opus",
      preferred_cli_env: [espec: :test],
-     deps: deps]
+     deps: deps()]
   end
 
 

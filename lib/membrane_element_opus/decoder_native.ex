@@ -41,9 +41,9 @@ defmodule Membrane.Element.Opus.DecoderNative do
   - decoder resource
   - input payload (bitstring), pass nil to indicate data loss
   - whether to decode FEC (0 - false, 1 - true)
-  - missing_frame_duration (0 if no frame is missing)
+  - duration of audio to decode in milliseconds
 
-  On success, returns `{:ok, {data, channels}}`.
+  On success, returns `{:ok, data}`.
 
   On bad arguments passed, returns `{:error, {:args, field, description}}`.
 

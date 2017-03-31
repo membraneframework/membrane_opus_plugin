@@ -100,10 +100,10 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
  *
  * - decoder_handle resource
  * - input payload (bitstring), pass nil to indicate data loss
- * - whether to decode FEC (boolean)
- * - duration of the missing frame in milliseconds (or 0 if no frame is missing)
+ * - whether to decode FEC (0 - false, 1 - true)
+ * - duration of audio to decode in milliseconds
  *
- * On success, returns `{:ok, {data, channels}}`.
+ * On success, returns `{:ok, data}`.
  *
  * On bad arguments passed, returns `{:error, {:args, field, description}}`.
  *
@@ -113,8 +113,8 @@ static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
 {
   DecoderHandle *handle;
   ErlNifBinary input_payload_binary;
-  int decode_fec;
-  int missing_frame_duration;
+  int use_fec;
+  int frame_duration;
 
   // Get decoder arg
   if(!enif_get_resource(env, argv[0], RES_OPUS_DECODER_HANDLE_TYPE, (void **) &handle)) {
@@ -127,61 +127,50 @@ static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
     return membrane_util_make_error_args(env, "input_payload", "Passed input_payload is not valid binary");
   }
 
-  // TODO handle nil
 
-
-  // Get decode FEC arg
-  if(!enif_get_int(env, argv[2], &decode_fec)) {
-    return membrane_util_make_error_args(env, "decode_fec", "Passed decode_fec in not valid integer");
+  // Get use_fec arg
+  if(!enif_get_int(env, argv[2], &use_fec)) {
+    return membrane_util_make_error_args(env, "use_fec", "Passed use_fec in not valid integer");
   }
 
 
-  // Get missing_frame_duration arg
-  if(!enif_get_int(env, argv[3], &missing_frame_duration)) {
-    return membrane_util_make_error_args(env, "missing_frame_duration", "Passed missing_frame_duration in not valid integer");
+  // Get frame_duration arg
+  if(!enif_get_int(env, argv[3], &frame_duration)) {
+    return membrane_util_make_error_args(env, "frame_duration", "Passed frame_duration in not valid integer");
   }
 
 
-  // Allocate temporary storage for the output, let's allocate maximum allowed
-  // by Opus (for 120ms of data) or exact size of audio that is missing
-  size_t output_size;
+  // Allocate temporary storage for the output.
+  size_t output_samples, output_bytes;
+  output_samples = (handle->sample_rate * frame_duration) / 1000;
+  output_bytes = output_samples * BYTES_PER_OUTPUT_SAMPLE * handle->channels;
 
-  if(!missing_frame_duration) {
-    output_size = (BYTES_PER_OUTPUT_SAMPLE * handle->channels *
-      handle->sample_rate * OPUS_FRAME_MAX_DURATION) / 1000;
-  } else {
-    output_size = (BYTES_PER_OUTPUT_SAMPLE * handle->channels *
-      handle->sample_rate * missing_frame_duration) / 1000;
-  }
-
-  opus_int16 *decoded_signal_data_temp = malloc(output_size);
+  opus_int16 *decoded_signal_data_temp = malloc(output_bytes);
 
 
   // Decode
-  int channels = handle->channels;
-  if(channels < 0) {
-    return make_error_from_opus_error(env, "decode", channels);
-  }
+  int use_plc = (input_payload_binary.size == 0);
 
-  int decoded_samples = opus_decode(handle->decoder, input_payload_binary.data, input_payload_binary.size, decoded_signal_data_temp, output_size, decode_fec);
+  int decoded_samples = opus_decode(handle->decoder, use_plc ? NULL : input_payload_binary.data, input_payload_binary.size, decoded_signal_data_temp, output_samples, use_fec);
+
   if(decoded_samples < 0) {
     free(decoded_signal_data_temp);
     return make_error_from_opus_error(env, "decode", decoded_samples);
   }
 
+  if (decoded_samples != output_samples) {
+    free(decoded_signal_data_temp);
+    return membrane_util_make_error(env, enif_make_atom(env, "invalid_frame_size"));
+  }
+
+
   // Prepare return value
   ERL_NIF_TERM decoded_signal_term;
-  size_t decoded_signal_size = decoded_samples * channels * 2;
-  unsigned char *decoded_signal_data = enif_make_new_binary(env, decoded_signal_size, &decoded_signal_term);
-  memcpy(decoded_signal_data, decoded_signal_data_temp, decoded_signal_size);
+  unsigned char *decoded_signal_data = enif_make_new_binary(env, output_bytes, &decoded_signal_term);
+  memcpy(decoded_signal_data, decoded_signal_data_temp, output_bytes);
   free(decoded_signal_data_temp);
 
-  ERL_NIF_TERM tuple[2] = {
-    decoded_signal_term,
-    enif_make_int(env, channels)
-  };
-
-  return membrane_util_make_ok_tuple(env, enif_make_tuple_from_array(env, tuple, 2));
+  return membrane_util_make_ok_tuple(env, decoded_signal_term);
 }
 
 
