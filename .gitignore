@@ -3,6 +3,7 @@
 /test*
 /priv
 /doc
+/bundlex*
 
 # NIF libraries
 *.so
