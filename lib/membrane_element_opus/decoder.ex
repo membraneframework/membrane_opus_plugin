@@ -29,9 +29,10 @@ defmodule Membrane.Element.Opus.Decoder do
   # Private API
 
   @doc false
-  def handle_init(%DecoderOptions{sample_rate: sample_rate, channels: channels, enable_fec: enable_fec}) do
+  def handle_init(%DecoderOptions{sample_rate: sample_rate, channels: channels, enable_fec: enable_fec, enable_plc: enable_plc}) do
     {:ok, %{
       enable_fec: enable_fec,
+      enable_plc: enable_plc,
       sample_rate: sample_rate,
       channels: channels,
       native: nil,
@@ -71,7 +72,7 @@ defmodule Membrane.Element.Opus.Decoder do
     decoded_data = case {prev_payload, prev_frame_duration} do
       # first buffer. delay by one packet
       {nil, nil} ->
-        {:ok, %{state | prev_payload: payload, prev_frame_duration: frame_duration}}
+        nil
 
       # previous frame is missing
       # use FEC
@@ -86,31 +87,43 @@ defmodule Membrane.Element.Opus.Decoder do
         decoded_data
     end
 
-    {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], %{state | prev_frame_duration: frame_duration, prev_payload: payload}}
+    case decoded_data do
+      nil ->
+        {:ok, %{state | prev_payload: payload, prev_frame_duration: frame_duration}}
+      _ ->
+        {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], %{state | prev_frame_duration: frame_duration, prev_payload: payload}}
+    end
+
   end
 
 
   # Handling discontinuity when FEC is disabled.
-  # Always use PLC instead
+  # Use PLC if enabled, otherwise forward the discontinuity event
   @doc false
-  def handle_event(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Event{type: :discontinuity, payload: %{duration: duration}}, %{native: native, enable_fec: false} = state) do
-    {:ok, decoded_data} = DecoderNative.decode_int(native, <<>>, 1, duration |> native_to_ms)
-    {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], state}
+  def handle_event(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Event{type: :discontinuity, payload: %{duration: duration}} = event, %{native: native, enable_fec: false, enable_plc: enable_plc} = state) do
+    case enable_plc do
+      true ->
+        {:ok, decoded_data} = DecoderNative.decode_int(native, <<>>, 1, duration |> native_to_ms)
+        {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], state}
+      false ->
+        {:ok, [{:send, {:source, event}}], state}
+    end
   end
 
 
   # Handling discontinuity when FEC is enabled
   @doc false
-  def handle_event(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Event{type: :discontinuity, payload: %{duration: duration}}, %{native: native, prev_payload: prev_payload, prev_frame_duration: prev_frame_duration, enable_fec: true} = state) do
+  def handle_event(:sink, %Membrane.Caps.Audio.Opus{}, %Membrane.Event{type: :discontinuity, payload: %{duration: duration}} = event, %{native: native, prev_payload: prev_payload, prev_frame_duration: prev_frame_duration, enable_fec: true} = state) do
 
     decoded_data = case {prev_payload, prev_frame_duration} do
 
       # received discontinuity before any valid frame
+      # just forward the event
       {nil, nil} ->
-        {:ok, state}
+        nil
 
       # both actual and previous frames are missing
-      # use PLC
+      # use PLC (it must be enabled when FEC is enabled)
       {nil, _} ->
         {:ok, decoded_data} = DecoderNative.decode_int(native, <<>>, 1, prev_frame_duration)
         decoded_data
@@ -122,7 +135,12 @@ defmodule Membrane.Element.Opus.Decoder do
         decoded_data
     end
 
-    {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], %{state | prev_frame_duration: duration |> native_to_ms, prev_payload: nil}}
+    case decoded_data do
+      nil ->
+        {:ok, [{:send, {:source, event}}], state}
+      _ ->
+        {:ok, [{:send, {:source, %Membrane.Buffer{payload: decoded_data}}}], %{state | prev_frame_duration: duration |> native_to_ms, prev_payload: nil}}
+    end
   end
 
 

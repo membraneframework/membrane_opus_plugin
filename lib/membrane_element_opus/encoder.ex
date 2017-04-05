@@ -35,7 +35,7 @@ defmodule Membrane.Element.Opus.Encoder do
   # Private API
 
   @doc false
-  def handle_init(%EncoderOptions{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application, enable_fec: enable_fec}) do
+  def handle_init(%EncoderOptions{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application, enable_fec: enable_fec, packet_loss: packet_loss}) do
     {:ok, %{
       frame_duration: frame_duration,
       bitrate: bitrate,
@@ -46,6 +46,7 @@ defmodule Membrane.Element.Opus.Encoder do
       frame_size_in_bytes: nil,
       native: nil,
       queue: << >>,
+      packet_loss: packet_loss,
       enable_fec: enable_fec,
     }}
   end
@@ -53,53 +54,44 @@ defmodule Membrane.Element.Opus.Encoder do
 
   @doc false
   # FIXME move sample_rate/channels setup to new handle_caps
-  def handle_prepare(_prev_state, %{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application, enable_fec: enable_fec} = state) do
-    case EncoderNative.create(sample_rate, channels, application, if(enable_fec, do: 1, else: 0)) do
-      {:ok, native} ->
-        case EncoderNative.set_bitrate(native, bitrate) do
-          :ok ->
-            # Store size in samples and bytes of one frame for given Opus
-            # frame size. This is later required both by encoder (it expects
-            # samples' count to each encode call) and by algorithm chopping
-            # incoming buffers into frames of size expected by the encoder.
-            #
-            # frame size in bytes is equal to amount of samples for duration
-            # specified by frame size for given sample rate multiplied by amount
-            # of channels multiplied by 2 (Opus always uses 16-bit frames).
-            frame_size_in_samples = frame_samples_count(sample_rate, frame_duration)
-            frame_size_in_bytes = frame_size_in_samples * @channels * @sample_size_in_bytes
+  def handle_prepare(_prev_state, %{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application, enable_fec: enable_fec, packet_loss: packet_loss} = state) do
+      with {:ok, native} <- EncoderNative.create(sample_rate, channels, application, if(enable_fec, do: 1, else: 0)),
+           :ok <- EncoderNative.set_bitrate(native, bitrate),
+           :ok <- EncoderNative.set_packet_loss_perc(native, packet_loss)
+      do
+        # Store size in samples and bytes of one frame for given Opus
+        # frame size. This is later required both by encoder (it expects
+        # samples' count to each encode call) and by algorithm chopping
+        # incoming buffers into frames of size expected by the encoder.
+        #
+        # frame size in bytes is equal to amount of samples for duration
+        # specified by frame size for given sample rate multiplied by amount
+        # of channels multiplied by 2 (Opus always uses 16-bit frames).
+        frame_size_in_samples = frame_samples_count(sample_rate, frame_duration)
+        frame_size_in_bytes = frame_size_in_samples * @channels * @sample_size_in_bytes
 
-            caps = %Membrane.Caps.Audio.Opus{frame_duration: frame_duration, channels: channels, enable_fec: enable_fec}
+        caps = %Membrane.Caps.Audio.Opus{frame_duration: frame_duration, channels: channels, enable_fec: enable_fec}
 
-            {
-              :ok,
-              [{:caps, {:source, caps}}],
-              %{state |
-                native: native,
-                frame_size_in_samples: frame_size_in_samples,
-                frame_size_in_bytes: frame_size_in_bytes,
-                queue: << >>
-              }
-            }
-
-          {:error, reason} ->
-            {:error, reason, %{state |
-              native: nil,
-              frame_size_in_samples: nil,
-              frame_size_in_bytes: nil,
-              queue: << >>
-            }}
-        end
-
-      {:error, reason} ->
-        {:error, reason, %{state |
-          native: nil,
-          frame_size_in_samples: nil,
-          frame_size_in_bytes: nil,
-          queue: << >>
-        }}
+        {
+          :ok,
+          [{:caps, {:source, caps}}],
+          %{state |
+            native: native,
+            frame_size_in_samples: frame_size_in_samples,
+            frame_size_in_bytes: frame_size_in_bytes,
+            queue: << >>
+          }
+        }
+      else
+        {:error, reason} ->
+          {:error, reason, %{state |
+            native: nil,
+            frame_size_in_samples: nil,
+            frame_size_in_bytes: nil,
+            queue: << >>
+          }}
+      end
     end
-  end
 
 
   # FIXME do not hardcode sample rate
