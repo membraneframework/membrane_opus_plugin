@@ -46,7 +46,7 @@ defmodule Membrane.Element.Opus.Encoder do
       frame_size_in_bytes: nil,
       native: nil,
       queue: << >>,
-      enable_fec: if(enable_fec, do: 1, else: 0),
+      enable_fec: enable_fec,
     }}
   end
 
@@ -54,7 +54,7 @@ defmodule Membrane.Element.Opus.Encoder do
   @doc false
   # FIXME move sample_rate/channels setup to new handle_caps
   def handle_prepare(_prev_state, %{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application, enable_fec: enable_fec} = state) do
-    case EncoderNative.create(sample_rate, channels, application, enable_fec) do
+    case EncoderNative.create(sample_rate, channels, application, if(enable_fec, do: 1, else: 0)) do
       {:ok, native} ->
         case EncoderNative.set_bitrate(native, bitrate) do
           :ok ->
@@ -69,9 +69,11 @@ defmodule Membrane.Element.Opus.Encoder do
             frame_size_in_samples = frame_samples_count(sample_rate, frame_duration)
             frame_size_in_bytes = frame_size_in_samples * @channels * @sample_size_in_bytes
 
+            caps = %Membrane.Caps.Audio.Opus{frame_duration: frame_duration, channels: channels, enable_fec: enable_fec}
+
             {
               :ok,
-              [{:caps, {:source, %Membrane.Caps.Audio.Opus{frame_duration: frame_duration}}}],
+              [{:caps, {:source, caps}}],
               %{state |
                 native: native,
                 frame_size_in_samples: frame_size_in_samples,
