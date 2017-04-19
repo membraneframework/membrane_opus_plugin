@@ -54,7 +54,7 @@ defmodule Membrane.Element.Opus.Encoder do
 
   @doc false
   # FIXME move sample_rate/channels setup to new handle_caps
-  def handle_prepare(_prev_state, %{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application, enable_fec: enable_fec, packet_loss: packet_loss} = state) do
+  def handle_prepare(:stopped, %{frame_duration: frame_duration, bitrate: bitrate, sample_rate: sample_rate, channels: channels, application: application, enable_fec: enable_fec, packet_loss: packet_loss} = state) do
       with {:ok, native} <- EncoderNative.create(sample_rate, channels, application, if(enable_fec, do: 1, else: 0)),
            :ok <- EncoderNative.set_bitrate(native, bitrate),
            :ok <- EncoderNative.set_packet_loss_perc(native, packet_loss)
@@ -91,6 +91,16 @@ defmodule Membrane.Element.Opus.Encoder do
             queue: << >>
           }}
       end
+    end
+
+
+    def handle_prepare(:playing, state) do
+      {:ok, %{state |
+        native: nil,
+        frame_size_in_samples: nil,
+        frame_size_in_bytes: nil,
+        queue: << >>}
+      }
     end
 
 

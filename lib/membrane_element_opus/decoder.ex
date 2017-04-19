@@ -43,7 +43,7 @@ defmodule Membrane.Element.Opus.Decoder do
 
 
   @doc false
-  def handle_prepare(_prev_state, %{sample_rate: sample_rate, channels: channels} = state) do
+  def handle_prepare(:stopped, %{sample_rate: sample_rate, channels: channels} = state) do
     case DecoderNative.create(sample_rate,  channels) do
       {:ok, native} ->
         command = [{:caps, {:source, %Membrane.Caps.Audio.Raw{sample_rate: sample_rate, channels: channels, format: :s16le}}}]
@@ -52,6 +52,15 @@ defmodule Membrane.Element.Opus.Decoder do
       {:error, reason} ->
         {:error, reason, %{state | native: nil}}
     end
+  end
+
+
+  def handle_prepare(:playing, state) do
+    {:ok, %{state |
+      native: nil,
+      prev_payload: nil,
+      prev_frame_duration: nil}
+    }
   end
 
 
