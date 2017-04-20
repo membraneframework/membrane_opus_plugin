@@ -24,7 +24,6 @@ ErlNifResourceType *RES_OPUS_ENCODER_TYPE;
 
 void res_opus_encoder_destructor(ErlNifEnv *env, void *encoder) {
   MEMBRANE_DEBUG("Destroying OpusEncoder %p", encoder);
-  opus_encoder_destroy((OpusEncoder *) encoder);
 }
 
 
