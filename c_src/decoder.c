@@ -11,9 +11,7 @@ ErlNifResourceType *RES_OPUS_DECODER_HANDLE_TYPE;
 
 
 void res_opus_decoder_handle_destructor(ErlNifEnv *env, void *data) {
-  DecoderHandle *handle = (DecoderHandle *)data;
-  MEMBRANE_DEBUG("Destroying OpusDecoder %p", handle->decoder);
-  opus_decoder_destroy(handle->decoder);
+  MEMBRANE_DEBUG("Destroying DecoderHandle %p", data);
 }
 
 
