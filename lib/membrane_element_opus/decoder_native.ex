@@ -3,12 +3,13 @@ defmodule Membrane.Element.Opus.DecoderNative do
   This module is an interface to native libopus-based Opus decoder.
   """
 
+  require Bundlex.Loader
 
   @on_load :load_nifs
 
   @doc false
   def load_nifs do
-    :ok = :erlang.load_nif('./membrane_element_opus_decoder', 0)
+    Bundlex.Loader.load_lib_nif!(:membrane_element_opus, :membrane_element_opus_decoder)
   end
 
 
