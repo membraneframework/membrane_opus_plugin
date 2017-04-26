@@ -6,10 +6,8 @@ defmodule Membrane.Element.Opus.Encoder do
   """
 
   use Membrane.Element.Base.Filter
-  alias Membrane.Element.Opus.EncoderNative
-  alias Membrane.Element.Opus.EncoderOptions
+  alias Membrane.Element.Opus.{EncoderNative, EncoderOptions, Event}
   alias Membrane.Helper.Bitstring
-
 
   def_known_source_pads %{
     :source => {:always, [
@@ -111,6 +109,22 @@ defmodule Membrane.Element.Opus.Encoder do
       |> Bitstring.split_map(frame_size_in_bytes, &encode/2, [state])
 
     {:ok, commands, %{state | queue: new_queue}}
+  end
+
+
+  @doc false
+  def handle_event(_pad, _caps, %Membrane.Event{payload: %Event.PacketLoss{percentage: percentage}}, %{native: native, packet_loss: packet_loss} = state) do
+    new_packet_loss = percentage * 100 |> Float.round |> trunc
+    if packet_loss != new_packet_loss do
+      case EncoderNative.set_packet_loss_perc(native, new_packet_loss) do
+        :ok ->
+          {:ok, %{state | packet_loss: new_packet_loss}}
+        {:error, reason} ->
+          {:error, reason, state}
+      end
+    else
+      {:ok, state}
+    end
   end
 
 
