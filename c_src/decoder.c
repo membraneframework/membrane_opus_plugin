@@ -5,17 +5,22 @@
  */
 
 #include "decoder.h"
-
+#define UNUSED(x) (void)(x)
 
 ErlNifResourceType *RES_OPUS_DECODER_HANDLE_TYPE;
 
 
 void res_opus_decoder_handle_destructor(ErlNifEnv *env, void *data) {
+  UNUSED(env);
+
   MEMBRANE_DEBUG("Destroying DecoderHandle %p", data);
 }
 
 
 int load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info) {
+  UNUSED(priv_data);
+  UNUSED(load_info);
+    
   int flags = ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER;
   RES_OPUS_DECODER_HANDLE_TYPE =
     enif_open_resource_type(env, NULL, "OpusDecoder", res_opus_decoder_handle_destructor, flags, NULL);
@@ -42,6 +47,7 @@ int load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info) {
  */
 static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+  UNUSED(argc);
   int          error;
   int          channels;
   int          sample_rate;
@@ -109,6 +115,7 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
  */
 static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+  UNUSED(argc);
   DecoderHandle *handle;
   ErlNifBinary input_payload_binary;
   int use_fec;
@@ -156,7 +163,7 @@ static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
     return make_error_from_opus_error(env, "decode", decoded_samples);
   }
 
-  if (decoded_samples != output_samples) {
+  if ((unsigned int)decoded_samples != output_samples) {
     free(decoded_signal_data_temp);
     return membrane_util_make_error(env, enif_make_atom(env, "invalid_frame_size"));
   }
@@ -174,8 +181,8 @@ static ERL_NIF_TERM export_decode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ErlNifFunc nif_funcs[] =
 {
-  {"create", 2, export_create},
-  {"decode_int", 4, export_decode_int}
+  {"create", 2, export_create, 0},
+  {"decode_int", 4, export_decode_int, 0}
 };
 
 ERL_NIF_INIT(Elixir.Membrane.Element.Opus.DecoderNative, nif_funcs, load, NULL, NULL, NULL)

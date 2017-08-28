@@ -19,15 +19,22 @@
 #define APPLICATION_ATOM_AUDIO               "audio"
 #define APPLICATION_ATOM_RESTRICTED_LOWDELAY "restricted_lowdelay"
 
+#define UNUSED(x) (void)(x)
+
 ErlNifResourceType *RES_OPUS_ENCODER_TYPE;
 
 
 void res_opus_encoder_destructor(ErlNifEnv *env, void *encoder) {
+  UNUSED(env);
+  
   MEMBRANE_DEBUG("Destroying OpusEncoder %p", encoder);
 }
 
 
 int load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info) {
+  UNUSED(priv_data);
+  UNUSED(load_info);
+
   int flags = ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER;
   RES_OPUS_ENCODER_TYPE =
     enif_open_resource_type(env, NULL, "OpusEncoder", res_opus_encoder_destructor, flags, NULL);
@@ -54,6 +61,7 @@ int load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info) {
  */
 static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+  UNUSED(argc);
   OpusEncoder* enc;
   int          error;
   int          channels;
@@ -61,7 +69,7 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
   char         application_atom[APPLICATION_ATOM_LEN];
   int          application;
   int          enable_fec;
-
+ 
 
   // Get sample rate arg
   if(!enif_get_int(env, argv[0], &sample_rate)) {
@@ -142,6 +150,7 @@ static ERL_NIF_TERM export_create(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
  */
 static ERL_NIF_TERM export_set_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+  UNUSED(argc);
   OpusEncoder *encoder;
   int bitrate;
   int error;
@@ -192,6 +201,7 @@ static ERL_NIF_TERM export_set_bitrate(ErlNifEnv* env, int argc, const ERL_NIF_T
  */
 static ERL_NIF_TERM export_set_packet_loss_perc(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+  UNUSED(argc);
   OpusEncoder *encoder;
   int packet_loss_perc;
   int error;
@@ -251,6 +261,7 @@ static ERL_NIF_TERM export_set_packet_loss_perc(ErlNifEnv* env, int argc, const 
  */
 static ERL_NIF_TERM export_encode_int(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+  UNUSED(argc);
   OpusEncoder *encoder;
   int frame_size;
   int sample_rate;
@@ -298,10 +309,10 @@ static ERL_NIF_TERM export_encode_int(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ErlNifFunc nif_funcs[] =
 {
-  {"create", 4, export_create},
-  {"set_bitrate", 2, export_set_bitrate},
-  {"encode_int", 3, export_encode_int},
-  {"set_packet_loss_perc", 2, export_set_packet_loss_perc},
+  {"create", 4, export_create, 0},
+  {"set_bitrate", 2, export_set_bitrate, 0},
+  {"encode_int", 3, export_encode_int, 0},
+  {"set_packet_loss_perc", 2, export_set_packet_loss_perc, 0},
 };
 
 ERL_NIF_INIT(Elixir.Membrane.Element.Opus.EncoderNative, nif_funcs, load, NULL, NULL, NULL)
