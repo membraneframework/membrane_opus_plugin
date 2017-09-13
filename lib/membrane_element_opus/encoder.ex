@@ -68,7 +68,7 @@ defmodule Membrane.Element.Opus.Encoder do
         frame_size_in_samples = frame_samples_count(sample_rate, frame_duration)
         frame_size_in_bytes = frame_size_in_samples * @channels * @sample_size_in_bytes
 
-        caps = %Membrane.Caps.Audio.Opus{frame_duration: frame_duration, channels: channels, enable_fec: enable_fec}
+        caps = %Membrane.Caps.Audio.Opus{frame_duration: frame_duration, channels: channels, enable_fec: enable_fec, bitrate: bitrate}
 
         {
           :ok,
