@@ -128,6 +128,24 @@ defmodule Membrane.Element.Opus.Encoder do
   end
 
 
+  @doc false
+  def handle_event(:source, caps, %Membrane.Event{payload: %Event.Bitrate{new_bitrate: new_bitrate}, type: :set_bitrate}, %{bitrate: old_bitrate, native: native} = state) do
+    if old_bitrate != new_bitrate do
+      case EncoderNative.set_bitrate(native, new_bitrate) do
+        :ok ->
+          caps = %{caps | bitrate: new_bitrate}
+          {:ok, [{:caps, {:source, caps}}], %{state | bitrate: new_bitrate}}
+        {:error, reason} ->
+          {:error, reason, state}
+      end
+    else
+      {:ok, state}
+    end
+  end
+
+
+
+
   # Frame duration in samples for 48 kHz
   defp frame_samples_count(48000, 60), do: 2880
   defp frame_samples_count(48000, 40), do: 1920
