@@ -6,10 +6,9 @@ defmodule Membrane.Element.Opus.Event.PacketLoss do
   on the way to the decoder.
   """
 
-  defstruct \
-    percentage: 0
+  defstruct percentage: 0
 
   @type t :: %Membrane.Element.Opus.Event.PacketLoss{
-    percentage: float
-  }
+          percentage: float
+        }
 end

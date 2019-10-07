@@ -6,10 +6,9 @@ defmodule Membrane.Element.Opus.Event.Bitrate do
   the runtime.
   """
 
-  defstruct \
-    new_bitrate: 0
+  defstruct new_bitrate: 0
 
   @type t :: %Membrane.Element.Opus.Event.Bitrate{
-    new_bitrate: float
-  }
+          new_bitrate: float
+        }
 end
