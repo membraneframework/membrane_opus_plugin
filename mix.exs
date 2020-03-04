@@ -35,10 +35,14 @@ defmodule Membrane.Element.Opus.Mixfile do
 
   defp deps do
     [
-      {:membrane_core, "~> 0.4.1"},
-      {:membrane_common_c, "~> 0.2.1"},
-      {:membrane_caps_audio_raw, "~> 0.1"},
+      {:membrane_core, "~> 0.5.0"},
+      {:membrane_element_ffmpeg_swresample, "~> 0.3.0"},
+      {:membrane_element_portaudio, "~> 0.3.0"},
+      {:membrane_common_c, "~> 0.3.0"},
+      {:membrane_caps_rtp, "~> 0.1"},
+      {:membrane_caps_audio_raw, "~> 0.2"},
       {:membrane_caps_audio_opus, github: "membraneframework/membrane-caps-audio-opus"},
+      {:bunch, "~> 1.2"},
       {:unifex, "~> 0.2.3"},
       {:dialyxir, "~> 1.0.0-rc.7", only: :dev, runtime: false},
       {:ex_doc, "~> 0.21", only: :dev}

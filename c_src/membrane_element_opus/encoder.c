@@ -1,3 +1,6 @@
 #include "encoder.h"
 
-//TODO: Implement functions from _generated/encoder.h
+void handle_destroy_state(UnifexEnv* env, UnifexNifState* state) {
+  UNIFEX_UNUSED(env);
+  UNIFEX_UNUSED(state);
+}

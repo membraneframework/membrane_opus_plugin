@@ -5,7 +5,7 @@
 #include <membrane/log.h>
 
 typedef struct _EncoderState {
-  //TODO
+  // TODO
 } UnifexNifState;
 
 typedef UnifexNifState State;
