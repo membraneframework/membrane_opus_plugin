@@ -21,20 +21,14 @@ defmodule Membrane.Element.Opus.Decoder.Native.NativeTest do
       @sample_opus_packets
       |> Enum.zip(@sample_raw)
       |> Enum.each(fn {opus_payload, raw} ->
-        assert {:ok, ^raw} = Native.decode_packet(state, opus_payload, 0, 20)
+        assert {:ok, ^raw} = Native.decode_packet(state, opus_payload)
       end)
-    end
-
-    test "returns packet duration", %{state: state} do
-      packet = @sample_opus_packets |> hd
-      assert {:ok, _} = Native.decode_packet(state, packet, 0, 20)
-      assert 20 = Native.get_last_packet_duration(state)
     end
 
     test "returns descriptive errors", %{state: state} do
       packet = List.last(@sample_opus_packets)
-      <<_::16, part::binary-size(8), _::binary>> = packet
-      assert {:error, :"corrupted stream"} == Native.decode_packet(state, part, 0, 20)
+      <<_::5, part::binary-size(8), _::bitstring>> = packet
+      assert {:error, :"corrupted stream"} == Native.decode_packet(state, part)
       assert {:error, :"invalid argument"} = Native.create(321, 33)
     end
   end

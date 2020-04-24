@@ -16,14 +16,6 @@ defmodule Membrane.Element.Opus.BundlexProject do
           "decoder.c"
         ],
         libs: ["opus"]
-      ],
-      encoder: [
-        deps: [membrane_common_c: :membrane, unifex: :unifex],
-        sources: [
-          "_generated/encoder.c",
-          "encoder.c"
-        ],
-        libs: ["opus"]
       ]
     ]
   end
