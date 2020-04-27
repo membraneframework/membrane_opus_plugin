@@ -23,7 +23,7 @@ defmodule Membrane.Element.Opus.Decoder do
               ]
 
   def_input_pad :input,
-    # Opus | :any
+    # Opus
     caps: :any,
     demand_unit: :buffers
 
@@ -43,14 +43,19 @@ defmodule Membrane.Element.Opus.Decoder do
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
     case Native.create(state.sample_rate, state.channels) do
-      {:ok, decoder} -> {:ok, %{state | decoder: decoder}}
+      {:ok, native} -> {:ok, %{state | native: native}}
       {:error, cause} -> {{:error, cause}, state}
     end
   end
 
   @impl true
-  def handle_demand(:input, size, :bytes, _ctx, state) do
+  def handle_demand(:output, size, :bytes, _ctx, state) do
     {{:ok, demand: {:input, div(size, @avg_opus_packet_size) + 1}}, state}
+  end
+
+  @impl true
+  def handle_demand(:output, size, :buffers, _ctx, state) do
+    {{:ok, demand: {:input, size}}, state}
   end
 
   @impl true
