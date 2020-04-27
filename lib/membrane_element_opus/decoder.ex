@@ -53,6 +53,17 @@ defmodule Membrane.Element.Opus.Decoder do
   end
 
   @impl true
+  def handle_prepared_to_playing(_ctx, state) do
+    caps = %Raw{format: :s16le, channels: state.channels, sample_rate: state.sample_rate}
+    {{:ok, caps: {:output, caps}}, state}
+  end
+
+  @impl true
+  def handle_caps(:input, _caps, _ctx, state) do
+    {:ok, state}
+  end
+
+  @impl true
   def handle_demand(:output, size, :bytes, _ctx, state) do
     {{:ok, demand: {:input, div(size, @avg_opus_packet_size) + 1}}, state}
   end
