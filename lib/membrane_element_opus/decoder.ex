@@ -14,7 +14,11 @@ defmodule Membrane.Element.Opus.Decoder do
   def_options sample_rate: [
                 spec: 8000 | 12000 | 16000 | 24000 | 48000,
                 default: 48000,
-                description: "Expected sample rate"
+                description: """
+                Sample rate to decode at. Note: Opus is able to decode any stream
+                at any supported sample rate. 48 kHz is recommended. For details,
+                see https://tools.ietf.org/html/rfc7845#section-5.1 point 5.
+                """
               ],
               channels: [
                 spec: 1 | 2,
