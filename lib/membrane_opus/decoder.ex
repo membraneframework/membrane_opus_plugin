@@ -1,4 +1,4 @@
-defmodule Membrane.Element.Opus.Decoder do
+defmodule Membrane.Opus.Decoder do
   @moduledoc """
   This element performs decoding of Opus audio.
   """

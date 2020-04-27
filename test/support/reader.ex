@@ -1,4 +1,4 @@
-defmodule Membrane.Element.Opus.Support.Reader do
+defmodule Membrane.Opus.Support.Reader do
   def read_packets(filename) do
     filename
     |> File.read!()

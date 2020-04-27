@@ -1,12 +1,12 @@
-defmodule Membrane.Element.Opus.Mixfile do
+defmodule Membrane.Opus.Mixfile do
   use Mix.Project
 
   @version "0.1.0"
-  @github_url "https://github.com/membraneframework/membrane-element-opus"
+  @github_url "https://github.com/membraneframework/membrane-opus"
 
   def project do
     [
-      app: :membrane_element_opus,
+      app: :membrane_opus,
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       version: @version,
       elixir: "~> 1.7",
@@ -15,11 +15,11 @@ defmodule Membrane.Element.Opus.Mixfile do
       deps: deps(),
 
       # hex
-      description: "Opus Element for Membrane Multimedia Framework",
+      description: "Opus plugin for Membrane Multimedia Framework",
       package: package(),
 
       # docs
-      name: "Membrane Element: Opus",
+      name: "Membrane Opus plugin",
       source_url: @github_url,
       homepage_url: "https://membraneframework.org",
       docs: docs()
@@ -65,7 +65,7 @@ defmodule Membrane.Element.Opus.Mixfile do
       main: "readme",
       extras: ["README.md"],
       source_ref: "v#{@version}",
-      nest_modules_by_prefix: [Membrane.Element.Opus]
+      nest_modules_by_prefix: [Membrane.Opus]
     ]
   end
 end

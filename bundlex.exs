@@ -1,4 +1,4 @@
-defmodule Membrane.Element.Opus.BundlexProject do
+defmodule Membrane.Opus.BundlexProject do
   use Bundlex.Project
 
   def project() do

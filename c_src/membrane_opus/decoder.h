@@ -1,7 +1,7 @@
 #pragma once
 
 #include <membrane/membrane.h>
-#define MEMBRANE_LOG_TAG "Membrane.Element.Opus.DecoderNative"
+#define MEMBRANE_LOG_TAG "Membrane.Opus.DecoderNative"
 #include <membrane/log.h>
 #include <opus/opus.h>
 

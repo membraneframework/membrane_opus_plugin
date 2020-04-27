@@ -1,4 +1,4 @@
-module Membrane.Element.Opus.Decoder.Native
+module Membrane.Opus.Decoder.Native
 
 spec create(sample_rate :: int, channels :: int) ::
        {:ok :: label, state}

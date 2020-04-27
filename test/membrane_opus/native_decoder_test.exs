@@ -1,7 +1,7 @@
-defmodule Membrane.Element.Opus.Decoder.Native.NativeTest do
+defmodule Membrane.Opus.Decoder.Native.NativeTest do
   use ExUnit.Case, async: true
-  alias Membrane.Element.Opus.Decoder.Native
-  alias Membrane.Element.Opus.Support.Reader
+  alias Membrane.Opus.Decoder.Native
+  alias Membrane.Opus.Support.Reader
 
   @sample_opus_packets Reader.read_packets("test/fixtures/opus_packets")
   @sample_raw Reader.read_packets("test/fixtures/raw_packets")
