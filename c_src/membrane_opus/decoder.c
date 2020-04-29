@@ -39,7 +39,8 @@ UNIFEX_TERM decode_packet(UnifexEnv *env, UnifexNifState *state,
     goto decode_packet_error;
   }
 
-  int output_size = samples_per_channel * state->channels * sizeof(opus_int16);
+  unsigned output_size =
+      samples_per_channel * state->channels * sizeof(opus_int16);
   UnifexPayload *out_payload =
       unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, output_size);
 
