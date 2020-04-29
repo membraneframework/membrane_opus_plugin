@@ -2,11 +2,11 @@ defmodule Membrane.Opus.Mixfile do
   use Mix.Project
 
   @version "0.1.0"
-  @github_url "https://github.com/membraneframework/membrane-opus"
+  @github_url "https://github.com/membraneframework/membrane_opus_plugin"
 
   def project do
     [
-      app: :membrane_opus,
+      app: :membrane_opus_plugin,
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       version: @version,
       elixir: "~> 1.7",
