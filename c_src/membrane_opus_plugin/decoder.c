@@ -51,8 +51,7 @@ UNIFEX_TERM decode_packet(UnifexEnv *env, UnifexNifState *state,
     error = (char *)opus_strerror(decoded_samples_per_channel);
     goto decode_packet_error;
   }
-  if (decoded_samples_per_channel * state->channels * sizeof(opus_int16) !=
-      output_size) {
+  if (decoded_samples_per_channel != samples_per_channel) {
     error = "invalid decoded output size";
     goto decode_packet_error;
   }
