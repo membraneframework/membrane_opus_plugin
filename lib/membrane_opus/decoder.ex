@@ -46,10 +46,8 @@ defmodule Membrane.Opus.Decoder do
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
-    case Native.create(state.sample_rate, state.channels) do
-      {:ok, native} -> {:ok, %{state | native: native}}
-      {:error, cause} -> {{:error, cause}, state}
-    end
+    native = Native.create(state.sample_rate, state.channels)
+    {:ok, %{state | native: native}}
   end
 
   @impl true
@@ -75,7 +73,7 @@ defmodule Membrane.Opus.Decoder do
 
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
-    {:ok, decoded} = Native.decode_packet(state.native, buffer.payload)
+    decoded = Native.decode_packet(state.native, buffer.payload)
     buffer = %Buffer{buffer | payload: decoded}
     {{:ok, buffer: {:output, buffer}}, state}
   end

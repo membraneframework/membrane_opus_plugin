@@ -39,7 +39,8 @@ defmodule Membrane.Opus.Mixfile do
       {:membrane_caps_audio_opus, github: "membraneframework/membrane-caps-audio-opus"},
       {:membrane_caps_audio_raw, "~> 0.2"},
       {:membrane_common_c, "~> 0.3.0"},
-      {:unifex, "~> 0.2.3"},
+      {:unifex, path: "../unifex", override: true},
+      # {:unifex, "~> 0.2.3"},
       {:dialyxir, "~> 1.0.0-rc.7", only: :dev, runtime: false},
       {:ex_doc, "~> 0.21", only: :dev}
     ]

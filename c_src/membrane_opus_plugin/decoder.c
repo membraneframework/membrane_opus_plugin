@@ -11,10 +11,10 @@ UNIFEX_TERM create(UnifexEnv *env, int sample_rate, int channels) {
 
   if (error != OPUS_OK) {
     unifex_release_state(env, state);
-    return create_result_error(env, (char *)opus_strerror(error));
+    return unifex_raise(env, (char *)opus_strerror(error));
   }
 
-  UNIFEX_TERM res = create_result_ok(env, state);
+  UNIFEX_TERM res = create_result(env, state);
   return res;
 }
 
@@ -35,7 +35,7 @@ UNIFEX_TERM decode_packet(UnifexEnv *env, UnifexNifState *state,
     goto decode_packet_error;
   }
   if (channels != state->channels) {
-    error = "invalid_number_of_channels";
+    error = "invalid number of channels";
     goto decode_packet_error;
   }
 
@@ -53,13 +53,13 @@ UNIFEX_TERM decode_packet(UnifexEnv *env, UnifexNifState *state,
   }
   if (decoded_samples_per_channel * state->channels * sizeof(opus_int16) !=
       output_size) {
-    error = "invalid_decoded_output_size";
+    error = "invalid decoded output size";
     goto decode_packet_error;
   }
 
-  return decode_packet_result_ok(env, out_payload);
+  return decode_packet_result(env, out_payload);
 decode_packet_error:
-  return decode_packet_result_error(env, error);
+  return unifex_raise(env, error);
 }
 
 UNIFEX_TERM destroy(UnifexEnv *env, UnifexNifState *state) {

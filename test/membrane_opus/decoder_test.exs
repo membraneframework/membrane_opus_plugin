@@ -29,6 +29,7 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
       })
 
     Membrane.Pipeline.play(pipeline)
+    assert_pipeline_playback_changed(pipeline, _, :playing)
 
     Enum.each(@sample_raw, fn expected_payload ->
       assert_sink_buffer(pipeline, :sink, %Membrane.Buffer{payload: payload})
