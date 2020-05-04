@@ -8,6 +8,7 @@ defmodule Membrane.Opus.Decoder do
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.Caps.Audio.Raw
+  alias Membrane.Opus
 
   @avg_opus_packet_size 960
 
@@ -26,13 +27,8 @@ defmodule Membrane.Opus.Decoder do
                 description: "Expected number of channels"
               ]
 
-  def_input_pad :input,
-    # Opus
-    caps: :any,
-    demand_unit: :buffers
-
-  def_output_pad :output,
-    caps: {Raw, format: :s16le}
+  def_input_pad :input, demand_unit: :buffers, caps: Opus
+  def_output_pad :output, caps: {Raw, format: :s16le}
 
   @impl true
   def handle_init(%__MODULE__{} = options) do
@@ -51,14 +47,10 @@ defmodule Membrane.Opus.Decoder do
   end
 
   @impl true
-  def handle_prepared_to_playing(_ctx, state) do
+  def handle_caps(:input, %Opus{} = caps, _ctx, state) do
+    true = caps.channels in [nil, state.channels]
     caps = %Raw{format: :s16le, channels: state.channels, sample_rate: state.sample_rate}
     {{:ok, caps: {:output, caps}}, state}
-  end
-
-  @impl true
-  def handle_caps(:input, _caps, _ctx, state) do
-    {:ok, state}
   end
 
   @impl true
