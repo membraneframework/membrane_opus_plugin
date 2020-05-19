@@ -36,8 +36,7 @@ defmodule Membrane.Opus.Mixfile do
   defp deps do
     [
       {:membrane_core, "~> 0.5.0"},
-      {:membrane_opus_format,
-       github: "membraneframework/membrane_opus_format", branch: "develop"},
+      {:membrane_opus_format, "~> 0.2.0"},
       {:membrane_caps_audio_raw, "~> 0.2"},
       {:membrane_common_c, "~> 0.3.0"},
       {:unifex, "~> 0.2.6"},
