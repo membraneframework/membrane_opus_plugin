@@ -1,4 +1,4 @@
-# Membrane Opus
+# Membrane Opus plugin
 
 This package provides tools for decoding/encoding audio with Opus codec.
 
