@@ -1,12 +1,12 @@
-defmodule Membrane.Element.Opus.Mixfile do
+defmodule Membrane.Opus.Mixfile do
   use Mix.Project
 
   @version "0.1.0"
-  @github_url "https://github.com/membraneframework/membrane-element-opus"
+  @github_url "https://github.com/membraneframework/membrane_opus_plugin"
 
   def project do
     [
-      app: :membrane_element_opus,
+      app: :membrane_opus_plugin,
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       version: @version,
       elixir: "~> 1.7",
@@ -15,11 +15,11 @@ defmodule Membrane.Element.Opus.Mixfile do
       deps: deps(),
 
       # hex
-      description: "Opus Element for Membrane Multimedia Framework",
+      description: "Opus plugin for Membrane Multimedia Framework",
       package: package(),
 
       # docs
-      name: "Membrane Element: Opus",
+      name: "Membrane Opus plugin",
       source_url: @github_url,
       homepage_url: "https://membraneframework.org",
       docs: docs()
@@ -35,11 +35,11 @@ defmodule Membrane.Element.Opus.Mixfile do
 
   defp deps do
     [
-      {:membrane_core, "~> 0.4.1"},
-      {:membrane_common_c, "~> 0.2.1"},
-      {:membrane_caps_audio_raw, "~> 0.1"},
-      {:membrane_caps_audio_opus, github: "membraneframework/membrane-caps-audio-opus"},
-      {:unifex, "~> 0.2.3"},
+      {:membrane_core, "~> 0.5.0"},
+      {:membrane_opus_format, "~> 0.2.0"},
+      {:membrane_caps_audio_raw, "~> 0.2"},
+      {:membrane_common_c, "~> 0.3.0"},
+      {:unifex, "~> 0.2.6"},
       {:dialyxir, "~> 1.0.0-rc.7", only: :dev, runtime: false},
       {:ex_doc, "~> 0.21", only: :dev}
     ]
@@ -61,7 +61,7 @@ defmodule Membrane.Element.Opus.Mixfile do
       main: "readme",
       extras: ["README.md"],
       source_ref: "v#{@version}",
-      nest_modules_by_prefix: [Membrane.Element.Opus]
+      nest_modules_by_prefix: [Membrane.Opus]
     ]
   end
 end
