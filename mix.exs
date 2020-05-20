@@ -1,4 +1,4 @@
-defmodule Membrane.Opus.Mixfile do
+defmodule Membrane.Opus.Plugin.Mixfile do
   use Mix.Project
 
   @version "0.1.0"
