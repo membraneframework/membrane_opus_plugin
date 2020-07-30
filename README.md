@@ -4,7 +4,7 @@ This package provides tools for decoding/encoding audio with Opus codec.
 
 It is a part of [Membrane Multimedia Framework](https://membraneframework.org).
 
-The docs can be found at [HexDocs](https://hexdocs.pm/membrane_element_fdk_aac).
+The docs can be found at [HexDocs](https://hexdocs.pm/membrane_opus_plugin).
 
 ## Installation
 
