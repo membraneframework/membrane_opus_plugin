@@ -8,9 +8,7 @@ typedef struct _EncoderState UnifexNifState;
 typedef UnifexNifState State;
 
 struct _EncoderState {
-  int input_rate;
-  int channels;
-  int application;
+  int output_size;
   OpusEncoder *encoder;
 };
 

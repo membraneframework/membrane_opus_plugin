@@ -9,6 +9,7 @@ defmodule Membrane.Opus.Encoder do
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.Caps.Audio.Raw
+  alias Membrane.Caps.Matcher
   alias Membrane.Opus
 
   @avg_opus_packet_size 960
@@ -20,6 +21,11 @@ defmodule Membrane.Opus.Encoder do
   @default_application :audio
 
   @list_type allowed_sample_rates :: [8000, 12_000, 16_000, 24_000, 48_000]
+
+  @supported_input {Raw,
+                    format: :s16le,
+                    channels: :any,
+                    sample_rate: Matcher.one_of(@allowed_sample_rates)}
 
   def_options application: [
                 spec: allowed_applications(),
@@ -40,7 +46,7 @@ defmodule Membrane.Opus.Encoder do
                 description: "Input type - used to set input sample rate"
               ]
 
-  def_input_pad :input, demand_unit: :buffers, caps: {Raw, format: :s16le}
+  def_input_pad :input, demand_unit: :bytes, caps: @supported_input
   def_output_pad :output, caps: Opus
 
   @impl true
@@ -73,12 +79,12 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_demand(:output, size, :bytes, _ctx, state) do
-    {{:ok, demand: {:input, div(size, @avg_opus_packet_size) + 1}}, state}
+    {{:ok, demand: {:input, size}}, state}
   end
 
   @impl true
   def handle_demand(:output, size, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, size}}, state}
+    {{:ok, demand: {:input, div(size, @avg_opus_packet_size) + 1}}, state}
   end
 
   @impl true

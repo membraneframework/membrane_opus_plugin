@@ -6,8 +6,7 @@ UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application
   State *state = unifex_alloc_state(env);
   int error = 0;
   state->encoder = opus_encoder_create(input_rate, channels, application, &error);
-  state->channels = channels;
-  state->input_rate = input_rate;
+  state->output_size = opus_encoder_get_size(channels);
 
   if (error != OPUS_OK) {
     unifex_release_state(env, state);
@@ -22,9 +21,8 @@ UNIFEX_TERM encode_packet(UnifexEnv *env, UnifexNifState *state,
                           UnifexPayload *in_payload) {
   char *error = NULL;
 
-  unsigned output_size = state->channels * sizeof(opus_int16);
   UnifexPayload *out_payload =
-      unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, output_size);
+      unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, state->output_size);
 
   int encoded_samples_per_channel =
       opus_encode(state->encoder, (opus_int16 *)in_payload->data, in_payload->size,
