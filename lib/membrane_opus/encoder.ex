@@ -160,6 +160,6 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp frame_size(options) do
-    Map.get(options, :input_caps).sample_rate * 20 / 1000 / Map.get(options, :channels)
+    round(Map.get(options, :input_caps).sample_rate * 20 / 1000 / Map.get(options, :channels))
   end
 end
