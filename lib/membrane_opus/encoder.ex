@@ -12,8 +12,6 @@ defmodule Membrane.Opus.Encoder do
   alias Membrane.Caps.Matcher
   alias Membrane.Opus
 
-  @avg_opus_packet_size 960
-
   @list_type allowed_channels :: [1, 2]
   @default_channels 2
 
@@ -54,7 +52,10 @@ defmodule Membrane.Opus.Encoder do
     state =
       options
       |> Map.from_struct()
-      |> Map.merge(%{native: nil})
+      |> Map.merge(%{
+        native: nil,
+        frame_size: frame_size(options)
+      })
 
     {:ok, state}
   end
@@ -84,12 +85,12 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_demand(:output, size, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, div(size, @avg_opus_packet_size) + 1}}, state}
+    {{:ok, demand: {:input, size * Map.get(state, :frame_size)}}, state}
   end
 
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
-    encoded = Native.encode_packet(state.native, buffer.payload)
+    {:ok, encoded} = Native.encode_packet(state.native, buffer.payload)
     buffer = %Buffer{buffer | payload: encoded}
     {{:ok, buffer: {:output, buffer}}, state}
   end
@@ -105,7 +106,8 @@ defmodule Membrane.Opus.Encoder do
            mk_native(
              Map.get(state, :input_caps).sample_rate,
              Map.get(state, :channels),
-             Map.get(state, :application)
+             Map.get(state, :application),
+             Map.get(state, :frame_size)
            ) do
       {:ok, %{state | native: native}}
     else
@@ -113,12 +115,12 @@ defmodule Membrane.Opus.Encoder do
     end
   end
 
-  defp mk_native(input_rate, channels, application) do
+  defp mk_native(input_rate, channels, application, frame_size) do
     with {:ok, channels} <- validate_channels(channels),
          {:ok, input_rate} <- validate_sample_rate(input_rate),
          {:ok, application} <- map_application_to_value(application),
          native <-
-           Native.create(input_rate, channels, application) do
+           Native.create(input_rate, channels, application, frame_size) do
       {:ok, native}
     else
       {:error, reason} -> {:error, reason}
@@ -155,5 +157,9 @@ defmodule Membrane.Opus.Encoder do
 
   defp validate_channels(_) do
     {:error, :invalid_channels}
+  end
+
+  defp frame_size(options) do
+    Map.get(options, :input_caps).sample_rate * 20 / 1000 / Map.get(options, :channels)
   end
 end

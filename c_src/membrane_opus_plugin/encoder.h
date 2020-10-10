@@ -8,8 +8,8 @@ typedef struct _EncoderState UnifexNifState;
 typedef UnifexNifState State;
 
 struct _EncoderState {
-  int output_size;
-  OpusEncoder *encoder;
+  struct OpusEncoder *encoder;
+  int frame_size;
 };
 
 #include "_generated/encoder.h"
