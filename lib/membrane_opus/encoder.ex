@@ -12,6 +12,8 @@ defmodule Membrane.Opus.Encoder do
   alias Membrane.Caps.Matcher
   alias Membrane.Opus
 
+  @max_frame_size 4000
+
   @list_type allowed_channels :: [1, 2]
   @default_channels 2
 
@@ -44,7 +46,7 @@ defmodule Membrane.Opus.Encoder do
                 description: "Input type - used to set input sample rate"
               ]
 
-  def_input_pad :input, demand_unit: :buffers, caps: @supported_input
+  def_input_pad :input, demand_unit: :bytes, caps: @supported_input
   def_output_pad :output, caps: Opus
 
   @impl true
@@ -54,51 +56,65 @@ defmodule Membrane.Opus.Encoder do
       |> Map.from_struct()
       |> Map.merge(%{
         native: nil,
-        frame_size: frame_size(options)
+        frame_size: frame_size(options),
+        queue: <<>>
       })
 
     {:ok, state}
   end
 
   @impl true
-  def handle_stopped_to_prepared(_ctx, state) do
-    inject_native(state)
+  def handle_start_of_stream(:input, _ctx, state) do
+    case state |> inject_native do
+      {:ok, state} ->
+        {:ok, state}
+
+      error ->
+        {error, state}
+    end
   end
 
   @impl true
-  def handle_caps(:input, caps, _ctx, %{input_caps: input_caps} = state)
-      when input_caps in [nil, caps] do
-    inject_native(state)
-  end
-
-  @impl true
-  def handle_caps(:input, caps, _ctx, %{input_caps: stored_caps}) do
-    raise """
-    Received caps #{inspect(caps)} are different than defined in options #{inspect(stored_caps)}.
-    """
+  def handle_caps(:input, caps, _ctx, state) do
+    state = %{state | input_caps: caps}
+    {:ok, state} = inject_native(state)
+    {{:ok}, state}
   end
 
   @impl true
   def handle_demand(:output, size, :bytes, _ctx, state) do
-    {{:ok, demand: {:input, div(size, state.frame_size) + 1}}, state}
-  end
-
-  @impl true
-  def handle_demand(:output, size, :buffers, _ctx, state) do
     {{:ok, demand: {:input, size}}, state}
   end
 
   @impl true
-  def handle_process(:input, buffer, _ctx, state) do
-    {:ok, encoded} = Native.encode_packet(state.native, buffer.payload, state.frame_size)
-    buffer = %Buffer{buffer | payload: encoded}
-    {{:ok, buffer: {:output, buffer}}, state}
+  def handle_demand(:output, bufs, :buffers, _ctx, state) do
+    {{:ok, demand: {:input, Raw.frames_to_bytes(state.frame_size, state.input_caps) * bufs}},
+     state}
+  end
+
+  @impl true
+  def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
+    # holds a buffer of raw input that is not yet encoded
+    to_encode = state.queue <> data
+
+    with {:ok, {encoded_buffers, bytes_used}} when bytes_used > 0 <-
+           encode_buffer(to_encode, state) do
+      <<_handled::binary-size(bytes_used), rest::binary>> = to_encode
+      {{:ok, buffer: {:output, encoded_buffers}, redemand: :output}, %{state | queue: rest}}
+    else
+      {:ok, {[], 0}} -> {:ok, %{state | queue: to_encode}}
+    end
   end
 
   @impl true
   def handle_prepared_to_stopped(_ctx, state) do
     :ok = Native.destroy(state.native)
     {:ok, state}
+  end
+
+  @impl true
+  def handle_end_of_stream(:input, _ctx, state) do
+    {{:ok, end_of_stream: :output}, state}
   end
 
   defp inject_native(state) do
@@ -157,5 +173,30 @@ defmodule Membrane.Opus.Encoder do
 
   defp frame_size(options) do
     round(options.input_caps.sample_rate * 20 / 1000 / options.channels)
+    |> min(@max_frame_size)
+  end
+
+  defp encode_buffer(raw_buffer, state, encoded_frames \\ [], bytes_used \\ 0)
+
+  # Encode a single frame because buffer contains at least one frame
+  defp encode_buffer(raw_buffer, state, encoded_frames, bytes_used)
+       when byte_size(raw_buffer) >= state.frame_size do
+    %{frame_size: frame_size, native: native} = state
+    <<raw_frame::binary-size(frame_size), rest::binary>> = raw_buffer
+    {:ok, raw_encoded} = Native.encode_packet(native, raw_frame, frame_size)
+    encoded_buffer = %Buffer{payload: raw_encoded}
+
+    # try to keep encoding if there are more frames
+    encode_buffer(
+      rest,
+      state,
+      [encoded_buffer | encoded_frames],
+      bytes_used + frame_size
+    )
+  end
+
+  # Invariant for encode_buffer - return encoded frames
+  defp encode_buffer(_raw_buffer, _state, encoded_frames, bytes_used) do
+    {:ok, {encoded_frames |> Enum.reverse(), bytes_used}}
   end
 end

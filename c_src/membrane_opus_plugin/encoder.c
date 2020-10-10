@@ -25,6 +25,7 @@ UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application
   State *state = unifex_alloc_state(env);
   int error = 0;
   state->encoder = opus_encoder_create(input_rate, channels, application, &error);
+  state->channels = channels;
 
   if (error != OPUS_OK) {
     unifex_release_state(env, state);
@@ -37,11 +38,11 @@ UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application
 
 UNIFEX_TERM encode_packet(UnifexEnv *env, UnifexNifState *state,
                           UnifexPayload *in_payload, int frame_size) {
-  unsigned char out_bytes[MAX_FRAME_SIZE];
+  unsigned char out_bytes[frame_size * state->channels * sizeof(opus_int16)];
 
   int encoded_size_or_error = opus_encode(
     state->encoder, (opus_int16 *)in_payload->data,
-    frame_size, out_bytes, MAX_FRAME_SIZE
+    frame_size, out_bytes, sizeof(out_bytes) 
   );
 
   if (encoded_size_or_error < 0) {
@@ -53,7 +54,7 @@ UNIFEX_TERM encode_packet(UnifexEnv *env, UnifexNifState *state,
       unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, encoded_size_or_error);
   memcpy(out_payload->data, out_bytes, encoded_size_or_error);
   UNIFEX_TERM res = encode_packet_result_ok(env, out_payload);
-  unifex_payload_release_ptr(&out_payload);
+  unifex_payload_release(out_payload);
   return res;
 }
 
