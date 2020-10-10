@@ -20,7 +20,6 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
       },
       opus: %Encoder{
         application: :audio,
-        channels: 2,
         input_caps: %Raw{
           channels: 2,
           format: :s16le,

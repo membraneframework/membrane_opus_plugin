@@ -15,7 +15,6 @@ defmodule Membrane.Opus.Encoder do
   @max_frame_size 4000
 
   @list_type allowed_channels :: [1, 2]
-  @default_channels 2
 
   @list_type allowed_applications :: [:voip, :audio, :low_delay]
   @default_application :audio
@@ -24,7 +23,7 @@ defmodule Membrane.Opus.Encoder do
 
   @supported_input {Raw,
                     format: :s16le,
-                    channels: :any,
+                    channels: Matcher.one_of(@allowed_channels),
                     sample_rate: Matcher.one_of(@allowed_sample_rates)}
 
   def_options application: [
@@ -33,11 +32,6 @@ defmodule Membrane.Opus.Encoder do
                 description: """
                 Output type (similar to compression amount). See https://opus-codec.org/docs/opus_api-1.3.1/group__opus__encoder.html#gaa89264fd93c9da70362a0c9b96b9ca88.
                 """
-              ],
-              channels: [
-                spec: allowed_channels(),
-                default: @default_channels,
-                description: "Desired number of channels"
               ],
               input_caps: [
                 spec: Raw.t(),
@@ -75,10 +69,10 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_caps(:input, caps, _ctx, state) do
-    state = %{state | input_caps: caps}
-    {:ok, state} = inject_native(state)
-    {{:ok}, state}
+  def handle_caps(:input, _caps, _ctx, _state) do
+    raise """
+    Changing input caps is not currently supported
+    """
   end
 
   @impl true
@@ -128,7 +122,7 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp mk_native(state) do
-    with {:ok, channels} <- validate_channels(state.channels),
+    with {:ok, channels} <- validate_channels(state.input_caps.channels),
          {:ok, input_rate} <- validate_sample_rate(state.input_caps.sample_rate),
          {:ok, application} <- map_application_to_value(state.application),
          native <-
@@ -172,7 +166,7 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp frame_size(options) do
-    round(options.input_caps.sample_rate * 20 / 1000 / options.channels)
+    round(options.input_caps.sample_rate * 20 / 1000 / options.input_caps.channels)
     |> min(@max_frame_size)
   end
 
