@@ -21,11 +21,10 @@ char *get_error(int err_code) {
   }
 }
 
-UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application, int frame_size) {
+UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application) {
   State *state = unifex_alloc_state(env);
   int error = 0;
   state->encoder = opus_encoder_create(input_rate, channels, application, &error);
-  state->frame_size = frame_size;
 
   if (error != OPUS_OK) {
     unifex_release_state(env, state);
@@ -37,22 +36,22 @@ UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application
 }
 
 UNIFEX_TERM encode_packet(UnifexEnv *env, UnifexNifState *state,
-                          UnifexPayload *in_payload) {
-  int max_frame_size = state->frame_size * 6;
-  unsigned char out_bytes[max_frame_size];
+                          UnifexPayload *in_payload, int frame_size) {
+  unsigned char out_bytes[MAX_FRAME_SIZE];
 
-  int encoded_size =
-      opus_encode(state->encoder, (opus_int16 *)in_payload->data, state->frame_size,
-                  out_bytes, max_frame_size);
+  int encoded_size_or_error = opus_encode(
+    state->encoder, (opus_int16 *)in_payload->data,
+    frame_size, out_bytes, MAX_FRAME_SIZE
+  );
 
-  if (encoded_size < 0) {
-    MEMBRANE_WARN(env, "Opus: Encode error: %x\n", encoded_size);
-    return encode_packet_result_error(env, get_error(encoded_size));
+  if (encoded_size_or_error < 0) {
+    MEMBRANE_WARN(env, "Opus: Encode error: %x\n", encoded_size_or_error);
+    return encode_packet_result_error(env, get_error(encoded_size_or_error));
   }
 
   UnifexPayload *out_payload =
-      unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, encoded_size);
-  memcpy(out_payload->data, out_bytes, encoded_size);
+      unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, encoded_size_or_error);
+  memcpy(out_payload->data, out_bytes, encoded_size_or_error);
   UNIFEX_TERM res = encode_packet_result_ok(env, out_payload);
   unifex_payload_release_ptr(&out_payload);
   return res;

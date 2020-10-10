@@ -44,7 +44,7 @@ defmodule Membrane.Opus.Encoder do
                 description: "Input type - used to set input sample rate"
               ]
 
-  def_input_pad :input, demand_unit: :bytes, caps: @supported_input
+  def_input_pad :input, demand_unit: :buffers, caps: @supported_input
   def_output_pad :output, caps: Opus
 
   @impl true
@@ -80,17 +80,17 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_demand(:output, size, :bytes, _ctx, state) do
-    {{:ok, demand: {:input, size}}, state}
+    {{:ok, demand: {:input, div(size, state.frame_size) + 1}}, state}
   end
 
   @impl true
   def handle_demand(:output, size, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, size * Map.get(state, :frame_size)}}, state}
+    {{:ok, demand: {:input, size}}, state}
   end
 
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
-    {:ok, encoded} = Native.encode_packet(state.native, buffer.payload)
+    {:ok, encoded} = Native.encode_packet(state.native, buffer.payload, state.frame_size)
     buffer = %Buffer{buffer | payload: encoded}
     {{:ok, buffer: {:output, buffer}}, state}
   end
@@ -102,25 +102,21 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp inject_native(state) do
-    with {:ok, native} <-
-           mk_native(
-             Map.get(state, :input_caps).sample_rate,
-             Map.get(state, :channels),
-             Map.get(state, :application),
-             Map.get(state, :frame_size)
-           ) do
-      {:ok, %{state | native: native}}
-    else
-      {:error, reason} -> {{:error, reason}, state}
+    case mk_native(state) do
+      {:ok, native} ->
+        {:ok, %{state | native: native}}
+
+      {:error, reason} ->
+        {{:error, reason, state}}
     end
   end
 
-  defp mk_native(input_rate, channels, application, frame_size) do
-    with {:ok, channels} <- validate_channels(channels),
-         {:ok, input_rate} <- validate_sample_rate(input_rate),
-         {:ok, application} <- map_application_to_value(application),
+  defp mk_native(state) do
+    with {:ok, channels} <- validate_channels(state.channels),
+         {:ok, input_rate} <- validate_sample_rate(state.input_caps.sample_rate),
+         {:ok, application} <- map_application_to_value(state.application),
          native <-
-           Native.create(input_rate, channels, application, frame_size) do
+           Native.create(input_rate, channels, application) do
       {:ok, native}
     else
       {:error, reason} -> {:error, reason}
@@ -160,6 +156,6 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp frame_size(options) do
-    round(Map.get(options, :input_caps).sample_rate * 20 / 1000 / Map.get(options, :channels))
+    round(options.input_caps.sample_rate * 20 / 1000 / options.channels)
   end
 end
