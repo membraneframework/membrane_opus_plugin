@@ -1,6 +1,6 @@
 defmodule Membrane.Opus.Encoder do
   @moduledoc """
-  This element performs encoding of Opus audio.
+  This element performs encoding of Opus audio into a raw stream. You'll need to parse the stream and then package it into a container in order to use it.
   """
 
   use Membrane.Filter
@@ -10,7 +10,6 @@ defmodule Membrane.Opus.Encoder do
   alias Membrane.Buffer
   alias Membrane.Caps.Audio.Raw
   alias Membrane.Caps.Matcher
-  alias Membrane.Opus
 
   @max_frame_size 4000
 
@@ -41,7 +40,7 @@ defmodule Membrane.Opus.Encoder do
               ]
 
   def_input_pad :input, demand_unit: :bytes, caps: @supported_input
-  def_output_pad :output, caps: Opus
+  def_output_pad :output, caps: :any
 
   @impl true
   def handle_init(%__MODULE__{} = options) do
@@ -108,7 +107,14 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    {{:ok, end_of_stream: :output}, state}
+    with {:ok, {encoded_buffers, bytes_used}} when bytes_used > 0 <-
+           encode_buffer(state.queue, state, [], 0, true) do
+      {{:ok, end_of_stream: :output, buffer: {:output, encoded_buffers}, redemand: :output},
+       %{state | queue: <<>>}}
+    else
+      _ ->
+        {{:ok, end_of_stream: :output}, state}
+    end
   end
 
   defp inject_native(state) do
@@ -170,10 +176,10 @@ defmodule Membrane.Opus.Encoder do
     |> min(@max_frame_size)
   end
 
-  defp encode_buffer(raw_buffer, state, encoded_frames \\ [], bytes_used \\ 0)
+  defp encode_buffer(raw_buffer, state, encoded_frames \\ [], bytes_used \\ 0, force \\ false)
 
   # Encode a single frame because buffer contains at least one frame
-  defp encode_buffer(raw_buffer, state, encoded_frames, bytes_used)
+  defp encode_buffer(raw_buffer, state, encoded_frames, bytes_used, false)
        when byte_size(raw_buffer) >= state.frame_size do
     %{frame_size: frame_size, native: native} = state
     <<raw_frame::binary-size(frame_size), rest::binary>> = raw_buffer
@@ -189,8 +195,23 @@ defmodule Membrane.Opus.Encoder do
     )
   end
 
+  # Force encoding of whatever is in the buffer
+  defp encode_buffer(raw_buffer, state, [], 0, true)
+       when byte_size(raw_buffer) > 0 do
+    %{frame_size: frame_size, native: native} = state
+    {:ok, raw_encoded} = Native.encode_packet(native, raw_buffer, frame_size)
+    encoded_buffer = %Buffer{payload: raw_encoded}
+
+    {:ok, {[encoded_buffer], byte_size(raw_buffer)}}
+  end
+
+  # Force encoding of whatever is in the buffer - but there is nothing there
+  defp encode_buffer(_raw_buffer, _state, [], 0, true) do
+    {:ok, {[], 0}}
+  end
+
   # Invariant for encode_buffer - return encoded frames
-  defp encode_buffer(_raw_buffer, _state, encoded_frames, bytes_used) do
+  defp encode_buffer(_raw_buffer, _state, encoded_frames, bytes_used, false) do
     {:ok, {encoded_frames |> Enum.reverse(), bytes_used}}
   end
 end
