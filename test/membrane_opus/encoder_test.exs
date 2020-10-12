@@ -8,8 +8,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   alias Membrane.Element.File
   import Membrane.ParentSpec
 
-  @input_path "input.wav"
-  @output_path "test.wav"
+  @input_path "test/fixtures/raw_packets"
 
   setup do
     elements = [
@@ -28,9 +27,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
         sample_rate: 48_000,
         channels: 2
       },
-      sink: %File.Sink{
-        location: @output_path
-      }
+      sink: Testing.Sink
     ]
 
     links = [
@@ -58,6 +55,6 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     %{pipeline_pid: pipeline_pid} = context
     Membrane.Pipeline.play(pipeline_pid)
     assert_start_of_stream(pipeline_pid, :sink)
-    assert_end_of_stream(pipeline_pid, :sink, :input, 50000)
+    assert_end_of_stream(pipeline_pid, :sink)
   end
 end

@@ -89,7 +89,7 @@ defmodule Membrane.Opus.Encoder do
     to_encode = state.queue <> data
 
     with {:ok, {encoded_buffers, bytes_used}} when bytes_used > 0 <-
-           encode_buffer(to_encode, state) do
+           encode_buffer(to_encode, state, frame_size_in_bytes(state)) do
       <<_handled::binary-size(bytes_used), rest::binary>> = to_encode
       {{:ok, buffer: {:output, encoded_buffers}, redemand: :output}, %{state | queue: rest}}
     else
@@ -166,30 +166,27 @@ defmodule Membrane.Opus.Encoder do
     Raw.frames_to_bytes(state.frame_size, state.input_caps)
   end
 
-  defp encode_buffer(raw_buffer, state, encoded_frames \\ [], bytes_used \\ 0) do
-    target_bytes = frame_size_in_bytes(state)
+  defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames \\ [], bytes_used \\ 0)
 
-    # TODO: I doubt this recursion is taking advantage of tail call
-    # optimization, but I can't use a guard here because of dynamic target
-    # byte size
-    case byte_size(raw_buffer) >= target_bytes do
-      true ->
-        # Encode a single frame because buffer contains at least one frame
-        <<raw_frame::binary-size(target_bytes), rest::binary>> = raw_buffer
-        {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, state.frame_size)
-        encoded_buffer = %Buffer{payload: raw_encoded}
+  defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames, bytes_used)
+       when byte_size(raw_buffer) >= target_byte_size do
+    # Encode a single frame because buffer contains at least one frame
+    <<raw_frame::binary-size(target_byte_size), rest::binary>> = raw_buffer
+    {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, state.frame_size)
+    encoded_buffer = %Buffer{payload: raw_encoded}
 
-        # maybe keep encoding if there are more frames
-        encode_buffer(
-          rest,
-          state,
-          [encoded_buffer | encoded_frames],
-          bytes_used + target_bytes
-        )
+    # maybe keep encoding if there are more frames
+    encode_buffer(
+      rest,
+      state,
+      target_byte_size,
+      [encoded_buffer | encoded_frames],
+      bytes_used + target_byte_size
+    )
+  end
 
-      false ->
-        # Invariant for encode_buffer - return encoded frames
-        {:ok, {encoded_frames |> Enum.reverse(), bytes_used}}
-    end
+  defp encode_buffer(_raw_buffer, _state, _target_byte_size, encoded_frames, bytes_used) do
+    # Invariant for encode_buffer - return what we have encoded
+    {:ok, {encoded_frames |> Enum.reverse(), bytes_used}}
   end
 end
