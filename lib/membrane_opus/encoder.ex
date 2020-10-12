@@ -5,7 +5,6 @@ defmodule Membrane.Opus.Encoder do
 
   use Membrane.Filter
   use Bunch.Typespec
-  use Membrane.Log
 
   alias __MODULE__.Native
   alias Membrane.Buffer
@@ -57,12 +56,12 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_start_of_stream(:input, _ctx, state) do
-    case state |> inject_native do
-      {:ok, state} ->
-        {:ok, state}
+    case state |> mk_native do
+      {:ok, native} ->
+        {:ok, %{state | native: native}}
 
-      error ->
-        {error, state}
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 
@@ -101,16 +100,6 @@ defmodule Membrane.Opus.Encoder do
   def handle_prepared_to_stopped(_ctx, state) do
     :ok = Native.destroy(state.native)
     {:ok, state}
-  end
-
-  defp inject_native(state) do
-    case mk_native(state) do
-      {:ok, native} ->
-        {:ok, %{state | native: native}}
-
-      {:error, reason} ->
-        {{:error, reason, state}}
-    end
   end
 
   defp mk_native(state) do
