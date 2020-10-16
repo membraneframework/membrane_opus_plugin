@@ -19,7 +19,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
         location: @input_path
       },
       encoder: %Encoder{
-        application: :low_delay,
+        application: :audio,
         input_caps: %Raw{
           channels: 2,
           format: :s16le,
