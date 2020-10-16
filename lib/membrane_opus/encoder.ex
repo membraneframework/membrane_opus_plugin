@@ -106,8 +106,7 @@ defmodule Membrane.Opus.Encoder do
     with {:ok, channels} <- validate_channels(state.input_caps.channels),
          {:ok, input_rate} <- validate_sample_rate(state.input_caps.sample_rate),
          {:ok, application} <- map_application_to_value(state.application),
-         native <-
-           Native.create(input_rate, channels, application) do
+         native <- Native.create(input_rate, channels, application) do
       {:ok, native}
     else
       {:error, reason} -> {:error, reason}

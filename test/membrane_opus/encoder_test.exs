@@ -5,35 +5,35 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   alias Membrane.Caps.Audio.Raw
   import Membrane.Testing.Assertions
   alias Membrane.Testing
-  alias Membrane.Element.File
+  alias Membrane.Element
   import Membrane.ParentSpec
+  alias Membrane.Opus.Support.Reader
 
-  @input_path "test/fixtures/raw_packets"
+  @input_path "test/fixtures/encoder_input.wav"
+  @output_path "test/fixtures/encoder_output.opus"
+  @reference_path "test/fixtures/encoder_output_reference.opus"
 
   setup do
     elements = [
-      source: %File.Source{
+      source: %Element.File.Source{
         location: @input_path
       },
       encoder: %Encoder{
-        application: :audio,
+        application: :low_delay,
         input_caps: %Raw{
           channels: 2,
           format: :s16le,
           sample_rate: 48_000
         }
       },
-      decoder: %Decoder{
-        sample_rate: 48_000,
-        channels: 2
-      },
-      sink: Testing.Sink
+      sink: %Element.File.Sink{
+        location: @output_path
+      }
     ]
 
     links = [
       link(:source)
       |> to(:encoder)
-      |> to(:decoder)
       |> to(:sink)
     ]
 
@@ -42,6 +42,8 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
         elements: elements,
         links: links
       })
+
+    on_exit(fn -> File.rm(@output_path) end)
 
     {:ok, %{pipeline_pid: pipeline_pid}}
   end
@@ -55,6 +57,10 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     %{pipeline_pid: pipeline_pid} = context
     Membrane.Pipeline.play(pipeline_pid)
     assert_start_of_stream(pipeline_pid, :sink)
-    assert_end_of_stream(pipeline_pid, :sink)
+    assert_end_of_stream(pipeline_pid, :sink, _, 5000)
+
+    reference = File.read!(@reference_path)
+    output = File.read!(@output_path)
+    assert reference == output
   end
 end

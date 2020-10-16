@@ -10,6 +10,7 @@ typedef UnifexNifState State;
 struct _EncoderState {
   struct OpusEncoder *encoder;
   int channels;
+  unsigned char *buffer;
 };
 
 #include "_generated/encoder.h"
