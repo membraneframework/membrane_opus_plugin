@@ -47,7 +47,6 @@ defmodule Membrane.Opus.Encoder do
       |> Map.from_struct()
       |> Map.merge(%{
         native: nil,
-        frame_size: frame_size(options.input_caps.sample_rate),
         queue: <<>>
       })
 
@@ -90,9 +89,10 @@ defmodule Membrane.Opus.Encoder do
     with {:ok, {encoded_buffers, bytes_used}} when bytes_used > 0 <-
            encode_buffer(to_encode, state, frame_size_in_bytes(state)) do
       <<_handled::binary-size(bytes_used), rest::binary>> = to_encode
-      {{:ok, buffer: {:output, encoded_buffers}, redemand: :output}, %{state | queue: rest}}
+      {{:ok, buffer: {:output, encoded_buffers}}, %{state | queue: rest}}
     else
-      _ -> {:ok, %{state | queue: to_encode}}
+      {:ok, _} -> {:ok, %{state | queue: to_encode}}
+      {:error, reason} -> {{:error, reason}, %{state | queue: to_encode}}
     end
   end
 
@@ -145,13 +145,13 @@ defmodule Membrane.Opus.Encoder do
     {:error, :invalid_channels}
   end
 
-  defp frame_size(sample_rate) do
+  defp frame_size(state) do
     # 20 milliseconds
-    round(sample_rate * 20 / 1000)
+    div(state.input_caps.sample_rate * 20, 1000)
   end
 
   defp frame_size_in_bytes(state) do
-    Raw.frames_to_bytes(state.frame_size, state.input_caps)
+    Raw.frames_to_bytes(frame_size(state), state.input_caps)
   end
 
   defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames \\ [], bytes_used \\ 0)
@@ -160,15 +160,14 @@ defmodule Membrane.Opus.Encoder do
        when byte_size(raw_buffer) >= target_byte_size do
     # Encode a single frame because buffer contains at least one frame
     <<raw_frame::binary-size(target_byte_size), rest::binary>> = raw_buffer
-    {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, state.frame_size)
-    encoded_buffer = %Buffer{payload: raw_encoded}
+    {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, frame_size(state))
 
     # maybe keep encoding if there are more frames
     encode_buffer(
       rest,
       state,
       target_byte_size,
-      [encoded_buffer | encoded_frames],
+      [%Buffer{payload: raw_encoded} | encoded_frames],
       bytes_used + target_byte_size
     )
   end
