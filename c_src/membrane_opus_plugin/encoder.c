@@ -40,7 +40,7 @@ UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application
   return res;
 }
 
-UNIFEX_TERM encode_packet(UnifexEnv *env, UnifexNifState *state,
+UNIFEX_TERM encode_packet(UnifexEnv *env, State *state,
                           UnifexPayload *in_payload, int frame_size) {
   int encoded_size_or_error = opus_encode(
     state->encoder, (opus_int16 *)in_payload->data,
@@ -61,7 +61,7 @@ UNIFEX_TERM encode_packet(UnifexEnv *env, UnifexNifState *state,
   return res;
 }
 
-void handle_destroy_state(UnifexEnv *env, UnifexNifState *state) {
+void handle_destroy_state(UnifexEnv *env, State *state) {
   UNIFEX_UNUSED(env);
   if (state->encoder != NULL) {
     opus_encoder_destroy(state->encoder);

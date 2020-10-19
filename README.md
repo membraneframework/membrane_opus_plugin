@@ -1,10 +1,12 @@
 # Membrane Opus plugin
 
-This package provides tools for decoding audio with Opus codec.
+[![Hex.pm](https://img.shields.io/hexpm/v/membrane_opus_plugin.svg)](https://hex.pm/packages/membrane_opus_plugin)
+[![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat)](https://hexdocs.pm/membrane_opus_plugin/)
+[![CircleCI](https://circleci.com/gh/membraneframework/membrane_opus_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_opus_plugin)
+
+Opus encoder and decoder.
 
 It is a part of [Membrane Multimedia Framework](https://membraneframework.org).
-
-The docs can be found at [HexDocs](https://hexdocs.pm/membrane_opus_plugin).
 
 ## Installation
 
