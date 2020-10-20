@@ -1,7 +1,7 @@
 #include "encoder.h"
 #include <unistd.h>
 
-// Based on https://opus-codec.org/docs/opus_api-1.1.3/
+// Based on https://opus-codec.org/docs/opus_api-1.3.1
 
 #define MAX_PACKET 1500
 
@@ -16,7 +16,7 @@ char *get_error(int err_code) {
     case OPUS_UNIMPLEMENTED:
       return "Invalid/unsupported request number";
     case OPUS_INVALID_STATE:
-      return "An encoder or decoder structure is invalid or already freed";
+      return "Encoder structure is invalid or already freed";
     case OPUS_ALLOC_FAIL:
       return "Memory allocation has failed";
     default:

@@ -34,7 +34,9 @@ defmodule Membrane.Opus.Encoder do
                 spec: Raw.t(),
                 type: :caps,
                 default: nil,
-                description: "Input type - used to set input sample rate"
+                description: """
+                Input type - used to set input sample rate and channels
+                """
               ]
 
   def_input_pad :input, demand_unit: :bytes, caps: @supported_input
@@ -91,8 +93,8 @@ defmodule Membrane.Opus.Encoder do
       <<_handled::binary-size(bytes_used), rest::binary>> = to_encode
       {{:ok, buffer: {:output, encoded_buffers}}, %{state | queue: rest}}
     else
-      {:ok, _} -> {:ok, %{state | queue: to_encode}}
-      {:error, reason} -> {{:error, reason}, %{state | queue: to_encode}}
+      {:ok, _} -> {{:ok, redemand: :output}, %{state | queue: to_encode}}
+      {:error, reason} -> {{:error, reason}, state}
     end
   end
 
@@ -147,7 +149,7 @@ defmodule Membrane.Opus.Encoder do
 
   defp frame_size(state) do
     # 20 milliseconds
-    div(state.input_caps.sample_rate * 20, 1000)
+    div(state.input_caps.sample_rate, 50)
   end
 
   defp frame_size_in_bytes(state) do
