@@ -4,8 +4,8 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
   alias Membrane.Opus.Decoder
   alias Membrane.Opus.Support.Reader
 
-  @sample_opus_packets Reader.read_packets("test/fixtures/raw_packets")
-  @sample_raw Reader.read_packets("test/fixtures/decoder_output_reference")
+  @sample_opus_packets Reader.read_packets("test/fixtures/decoder_output_reference")
+  @sample_raw Reader.read_packets("test/fixtures/raw_packets")
 
   test "integration" do
     import Membrane.ParentSpec
