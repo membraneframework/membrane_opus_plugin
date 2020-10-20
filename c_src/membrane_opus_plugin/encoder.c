@@ -26,6 +26,7 @@ char *get_error(int err_code) {
 
 UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application) {
   State *state = unifex_alloc_state(env);
+  state->buffer = calloc(MAX_PACKET, sizeof(unsigned char));
 
   int error = 0;
   state->encoder = opus_encoder_create(input_rate, channels, application, &error);
@@ -34,10 +35,8 @@ UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application
     return unifex_raise(env, (char *)opus_strerror(error));
   }
 
-  state->channels = channels;
-  state->buffer = calloc(MAX_PACKET, sizeof(unsigned char));
-
   UNIFEX_TERM res = create_result(env, state);
+  unifex_release_state(env, state);
   return res;
 }
 
@@ -62,15 +61,12 @@ UNIFEX_TERM encode_packet(UnifexEnv *env, UnifexNifState *state,
   return res;
 }
 
-UNIFEX_TERM destroy(UnifexEnv *env, UnifexNifState *state) {
-  opus_encoder_destroy(state->encoder);
-
-  unifex_release_state(env, state);
-  return destroy_result(env);
-}
-
 void handle_destroy_state(UnifexEnv *env, UnifexNifState *state) {
   UNIFEX_UNUSED(env);
-  free(state->encoder);
-  free(state->buffer);
+  if (state->encoder != NULL) {
+    opus_encoder_destroy(state->encoder);
+  }
+  if (state->buffer != NULL) {
+    free(state->buffer);
+  }
 }

@@ -8,9 +8,9 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   alias Membrane.Element
   import Membrane.ParentSpec
 
-  @input_path "test/fixtures/encoder_input.wav"
-  @output_path "test/fixtures/encoder_output.opus"
-  @reference_path "test/fixtures/encoder_output_reference.opus"
+  @input_path "test/fixtures/raw_packets"
+  @output_path "test/fixtures/encoder_output"
+  @reference_path "test/fixtures/encoder_output_reference"
 
   setup do
     on_exit(fn -> File.rm(@output_path) end)
@@ -47,12 +47,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     {:ok, %{pipeline_pid: pipeline_pid}}
   end
 
-  # NOTE: a full integration test of Opus will require implementation of an
-  # Opus container and parser. The libopus encoder tests do the same thing
-  # we're doing here: just ensuring that encoded packets can be decoded.
-  #
-  # https://gitlab.xiph.org/xiph/opus/-/blob/master/tests/test_opus_encode.c#L160
-  test "eating our own dog food", context do
+  test "encoded output matches reference", context do
     %{pipeline_pid: pipeline_pid} = context
     Membrane.Pipeline.play(pipeline_pid)
     assert_start_of_stream(pipeline_pid, :sink)
@@ -60,6 +55,6 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
 
     reference = File.read!(@reference_path)
     output = File.read!(@output_path)
-    # assert reference == output
+    assert reference == output
   end
 end

@@ -42,7 +42,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       {:unifex, "~> 0.2.6"},
       {:dialyxir, "~> 1.0.0-rc.7", only: :dev, runtime: false},
       {:ex_doc, "~> 0.21", only: :dev},
-      {:membrane_element_file, "~> 0.3.0", only: [:dev, :test]}
+      {:membrane_element_file, "~> 0.3.0", only: :test}
     ]
   end
 

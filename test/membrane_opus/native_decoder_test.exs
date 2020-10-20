@@ -3,7 +3,7 @@ defmodule Membrane.Opus.Decoder.Native.NativeTest do
   alias Membrane.Opus.Decoder.Native
   alias Membrane.Opus.Support.Reader
 
-  @sample_opus_packets Reader.read_packets("test/fixtures/decoder_input")
+  @sample_opus_packets Reader.read_packets("test/fixtures/raw_packets")
   @sample_raw Reader.read_packets("test/fixtures/decoder_output_reference")
 
   test "Native decoder creation/destruction works" do

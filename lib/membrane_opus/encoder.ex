@@ -88,13 +88,17 @@ defmodule Membrane.Opus.Encoder do
     # holds a buffer of raw input that is not yet encoded
     to_encode = state.queue <> data
 
-    with {:ok, {encoded_buffers, bytes_used}} when bytes_used > 0 <-
-           encode_buffer(to_encode, state, frame_size_in_bytes(state)) do
-      <<_handled::binary-size(bytes_used), rest::binary>> = to_encode
-      {{:ok, buffer: {:output, encoded_buffers}}, %{state | queue: rest}}
-    else
-      {:ok, _} -> {{:ok, redemand: :output}, %{state | queue: to_encode}}
-      {:error, reason} -> {{:error, reason}, state}
+    case encode_buffer(to_encode, state, frame_size_in_bytes(state)) do
+      {:ok, {[], rest}} ->
+        # nothing was encoded
+        {{:ok, redemand: :output}, %{state | queue: rest}}
+
+      {:ok, {encoded_buffers, rest}} ->
+        # something was encoded
+        {{:ok, buffer: {:output, encoded_buffers}}, %{state | queue: rest}}
+
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 
@@ -102,6 +106,22 @@ defmodule Membrane.Opus.Encoder do
   def handle_prepared_to_stopped(_ctx, state) do
     :ok = Native.destroy(state.native)
     {:ok, state}
+  end
+
+  @impl true
+  def handle_end_of_stream(:input, _ctx, state) do
+    actions = [end_of_stream: :output]
+
+    if byte_size(state.queue) > 0 do
+      # opus must receive input that is exactly the frame_size, so we need to
+      # pad with 0
+      to_encode = String.pad_trailing(state.queue, frame_size_in_bytes(state), <<0>>)
+      {:ok, raw_encoded} = Native.encode_packet(state.native, to_encode, frame_size(state))
+      buffer_actions = [buffer: {:output, %Buffer{payload: raw_encoded}}]
+      {{:ok, buffer_actions ++ actions}, %{state | queue: <<>>}}
+    else
+      {{:ok, actions}, %{state | queue: <<>>}}
+    end
   end
 
   defp mk_native(state) do
@@ -149,16 +169,16 @@ defmodule Membrane.Opus.Encoder do
 
   defp frame_size(state) do
     # 20 milliseconds
-    div(state.input_caps.sample_rate, 50)
+    div(state.input_caps.sample_rate, 1000) * 20
   end
 
   defp frame_size_in_bytes(state) do
     Raw.frames_to_bytes(frame_size(state), state.input_caps)
   end
 
-  defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames \\ [], bytes_used \\ 0)
+  defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames \\ [])
 
-  defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames, bytes_used)
+  defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames)
        when byte_size(raw_buffer) >= target_byte_size do
     # Encode a single frame because buffer contains at least one frame
     <<raw_frame::binary-size(target_byte_size), rest::binary>> = raw_buffer
@@ -169,13 +189,12 @@ defmodule Membrane.Opus.Encoder do
       rest,
       state,
       target_byte_size,
-      [%Buffer{payload: raw_encoded} | encoded_frames],
-      bytes_used + target_byte_size
+      [%Buffer{payload: raw_encoded} | encoded_frames]
     )
   end
 
-  defp encode_buffer(_raw_buffer, _state, _target_byte_size, encoded_frames, bytes_used) do
+  defp encode_buffer(raw_buffer, _state, _target_byte_size, encoded_frames) do
     # Invariant for encode_buffer - return what we have encoded
-    {:ok, {encoded_frames |> Enum.reverse(), bytes_used}}
+    {:ok, {encoded_frames |> Enum.reverse(), raw_buffer}}
   end
 end
