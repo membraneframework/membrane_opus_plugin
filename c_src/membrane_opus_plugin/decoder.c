@@ -15,6 +15,7 @@ UNIFEX_TERM create(UnifexEnv *env, int sample_rate, int channels) {
   }
 
   UNIFEX_TERM res = create_result(env, state);
+  unifex_release_state(env, state);
   return res;
 }
 
