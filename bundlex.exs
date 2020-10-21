@@ -13,7 +13,7 @@ defmodule Membrane.Opus.BundlexProject do
         deps: [membrane_common_c: :membrane, unifex: :unifex],
         sources: [
           "_generated/decoder.c",
-          "decoder.c",
+          "decoder.c"
         ],
         libs: ["opus"]
       ],
@@ -21,7 +21,7 @@ defmodule Membrane.Opus.BundlexProject do
         deps: [membrane_common_c: :membrane, unifex: :unifex],
         sources: [
           "_generated/encoder.c",
-          "encoder.c",
+          "encoder.c"
         ],
         libs: ["opus"]
       ]
