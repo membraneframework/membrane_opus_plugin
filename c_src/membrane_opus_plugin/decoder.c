@@ -63,7 +63,6 @@ decode_packet_error:
 }
 
 UNIFEX_TERM destroy(UnifexEnv *env, UnifexNifState *state) {
-  opus_decoder_destroy(state->decoder);
 
   unifex_release_state(env, state);
   return destroy_result(env);
@@ -71,5 +70,8 @@ UNIFEX_TERM destroy(UnifexEnv *env, UnifexNifState *state) {
 
 void handle_destroy_state(UnifexEnv *env, UnifexNifState *state) {
   UNIFEX_UNUSED(env);
-  free(state->decoder);
+
+  if (state->decoder) {
+    opus_decoder_destroy(state->decoder);
+  }
 }
