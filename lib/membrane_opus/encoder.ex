@@ -56,7 +56,7 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_start_of_stream(:input, _ctx, state) do
+  def handle_stopped_to_prepared(_ctx, state) do
     case state |> mk_native do
       {:ok, native} ->
         {:ok, %{state | native: native}}
@@ -104,8 +104,7 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_prepared_to_stopped(_ctx, state) do
-    :ok = Native.destroy(state.native)
-    {:ok, state}
+    {:ok, %{state | native: nil}}
   end
 
   @impl true

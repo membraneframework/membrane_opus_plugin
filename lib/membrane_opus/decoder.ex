@@ -72,7 +72,6 @@ defmodule Membrane.Opus.Decoder do
 
   @impl true
   def handle_prepared_to_stopped(_ctx, state) do
-    :ok = Native.destroy(state.native)
-    {:ok, state}
+    {:ok, %{state | native: nil}}
   end
 end
