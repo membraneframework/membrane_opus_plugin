@@ -10,14 +10,13 @@ defmodule Membrane.Opus.BundlexProject do
   def natives(_platform) do
     [
       decoder: [
-        deps: [membrane_common_c: :membrane, unifex: :unifex],
         sources: ["decoder.c"],
         libs: ["opus"],
         interface: :nif,
         preprocessor: Unifex
       ],
       encoder: [
-        deps: [membrane_common_c: :membrane, unifex: :unifex],
+        deps: [membrane_common_c: :membrane],
         sources: ["encoder.c"],
         libs: ["opus"],
         interface: :nif,

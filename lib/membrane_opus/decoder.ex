@@ -27,7 +27,7 @@ defmodule Membrane.Opus.Decoder do
                 description: "Expected number of channels"
               ]
 
-  def_input_pad :input, demand_unit: :buffers, caps: Opus
+  def_input_pad :input, demand_unit: :buffers, caps: {Opus, self_delimiting?: false}
   def_output_pad :output, caps: {Raw, format: :s16le}
 
   @impl true

@@ -10,6 +10,7 @@ defmodule Membrane.Opus.Encoder do
   alias Membrane.Buffer
   alias Membrane.Caps.Audio.Raw
   alias Membrane.Caps.Matcher
+  alias Membrane.Opus
 
   @list_type allowed_channels :: [1, 2]
 
@@ -40,7 +41,7 @@ defmodule Membrane.Opus.Encoder do
               ]
 
   def_input_pad :input, demand_unit: :bytes, caps: @supported_input
-  def_output_pad :output, caps: :any
+  def_output_pad :output, caps: {Opus, self_delimiting?: false}
 
   @impl true
   def handle_init(%__MODULE__{} = options) do
@@ -64,6 +65,12 @@ defmodule Membrane.Opus.Encoder do
       {:error, reason} ->
         {{:error, reason}, state}
     end
+  end
+
+  @impl true
+  def handle_caps(:input, caps, _ctx, %{input_caps: nil} = state) do
+    output_caps = %Opus{channels: caps.channels}
+    {{:ok, caps: {:output, output_caps}}, %{state | input_caps: caps}}
   end
 
   @impl true
