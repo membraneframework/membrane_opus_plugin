@@ -15,7 +15,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       deps: deps(),
 
       # hex
-      description: "Opus plugin for Membrane Multimedia Framework",
+      description: "Membrane Opus encoder and decoder",
       package: package(),
 
       # docs
@@ -42,7 +42,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       {:unifex, "~> 0.3.2"},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.23", only: :dev},
-      {:membrane_element_file, "~> 0.4.0", only: :test}
+      {:membrane_element_file, "~> 0.3.0", only: :test}
     ]
   end
 
