@@ -3,27 +3,25 @@ defmodule Membrane.Opus.BundlexProject do
 
   def project() do
     [
-      nifs: nifs(Bundlex.platform())
+      natives: natives(Bundlex.platform())
     ]
   end
 
-  def nifs(_platform) do
+  def natives(_platform) do
     [
       decoder: [
         deps: [membrane_common_c: :membrane, unifex: :unifex],
-        sources: [
-          "_generated/decoder.c",
-          "decoder.c"
-        ],
-        libs: ["opus"]
+        sources: ["decoder.c"],
+        libs: ["opus"],
+        interface: :nif,
+        preprocessor: Unifex
       ],
       encoder: [
         deps: [membrane_common_c: :membrane, unifex: :unifex],
-        sources: [
-          "_generated/encoder.c",
-          "encoder.c"
-        ],
-        libs: ["opus"]
+        sources: ["encoder.c"],
+        libs: ["opus"],
+        interface: :nif,
+        preprocessor: Unifex
       ]
     ]
   end

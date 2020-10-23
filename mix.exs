@@ -9,13 +9,13 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       app: :membrane_opus_plugin,
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       version: @version,
-      elixir: "~> 1.7",
+      elixir: "~> 1.10",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
 
       # hex
-      description: "Opus plugin for Membrane Multimedia Framework",
+      description: "Membrane Opus encoder and decoder",
       package: package(),
 
       # docs
@@ -38,10 +38,10 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       {:membrane_core, "~> 0.5.0"},
       {:membrane_opus_format, "~> 0.2.0"},
       {:membrane_caps_audio_raw, "~> 0.2"},
-      {:membrane_common_c, "~> 0.3.0"},
-      {:unifex, "~> 0.2.6"},
-      {:dialyxir, "~> 1.0.0-rc.7", only: :dev, runtime: false},
-      {:ex_doc, "~> 0.21", only: :dev},
+      {:membrane_common_c, "~> 0.4.0"},
+      {:unifex, "~> 0.3.2"},
+      {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.23", only: :dev},
       {:membrane_element_file, "~> 0.3.0", only: :test}
     ]
   end

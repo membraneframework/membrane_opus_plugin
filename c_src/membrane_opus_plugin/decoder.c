@@ -19,7 +19,7 @@ UNIFEX_TERM create(UnifexEnv *env, int sample_rate, int channels) {
   return res;
 }
 
-UNIFEX_TERM decode_packet(UnifexEnv *env, UnifexNifState *state,
+UNIFEX_TERM decode_packet(UnifexEnv *env, State *state,
                           UnifexPayload *in_payload) {
   char *error = NULL;
 
@@ -62,7 +62,7 @@ decode_packet_error:
   return unifex_raise(env, error);
 }
 
-void handle_destroy_state(UnifexEnv *env, UnifexNifState *state) {
+void handle_destroy_state(UnifexEnv *env, State *state) {
   UNIFEX_UNUSED(env);
 
   if (state->decoder) {

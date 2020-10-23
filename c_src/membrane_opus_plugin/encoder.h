@@ -3,11 +3,11 @@
 #define MEMBRANE_LOG_TAG "Membrane.Opus.EncoderNative"
 #include <membrane/log.h>
 #include <opus/opus.h>
+#include <unifex/unifex.h>
 
-typedef struct _EncoderState UnifexNifState;
-typedef UnifexNifState State;
+typedef struct State State;
 
-struct _EncoderState {
+struct State {
   struct OpusEncoder *encoder;
   unsigned char *buffer;
 };
