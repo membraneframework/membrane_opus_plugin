@@ -15,7 +15,7 @@ The package can be installed by adding `membrane_opus_plugin` to your list of de
 ```elixir
 def deps do
   [
-    {:membrane_opus_plugin, "~> 0.1.0"}
+    {:membrane_opus_plugin, "~> 0.2.0"}
   ]
 end
 ```
@@ -39,7 +39,54 @@ brew install opus
 
 ## Usage example
 
-TODO
+### Encoder 
+Example encoder usage: 
+```elixir
+elements = [
+  source: %Membrane.Element.File.Source{
+    location: @input_path
+  },
+  encoder: %Membrane.Opus.Encoder{
+    application: :audio,
+    input_caps: %Raw{
+      channels: 2,
+      format: :s16le,
+      sample_rate: 48_000
+    }
+  },
+  sink: %Membrane.Element.File.Sink{
+    location: @output_path
+  }
+]
+
+links = [
+  link(:source)
+  |> to(:encoder)
+  |> to(:sink)
+]
+```
+
+### Decoder
+Example decoder usage:
+```elixir
+elements = [
+  source: %Membrane.Element.File.Source{
+    location: @input_path
+  },
+  opus: Membrane.Opus.Decoder,
+  sink: %Membrane.Element.File.Sink{
+    location: @output_path
+  }
+]
+
+links = [
+  link(:source) 
+  |> to(:opus) 
+  |> to(:sink)
+]
+```
+
+For more information please refer to `Membrane.Opus.Encoder`/`Membrane.Opus.Decoder` module documentation or our tests.
 
 ## Copyright and License
 
