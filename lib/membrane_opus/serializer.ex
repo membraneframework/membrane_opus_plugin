@@ -31,13 +31,13 @@ defmodule Membrane.Opus.Serializer do
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
     %Buffer{payload: payload} = buffer
-    {:ok, _config, _stereo?, code, data} = PacketUtils.parse_toc(payload)
+    {:ok, %{code: code}, data} = PacketUtils.parse_toc(payload)
     {:ok, mode, frames, padding, data} = PacketUtils.skip_code(code, data)
     {:ok, frames_size, body} = PacketUtils.skip_frame_sizes(mode, data, max(0, frames - 1))
     header_size = byte_size(payload) - byte_size(body)
     <<header::binary-size(header_size), _rest::binary>> = payload
     last_frame_size = PacketUtils.encode_frame_size(byte_size(body) - frames_size - padding)
-    buffer = %Buffer{payload: header <> last_frame_size <> body}
+    buffer = %Buffer{buffer | payload: header <> last_frame_size <> body}
     {{:ok, buffer: {:output, buffer}}, state}
   end
 end

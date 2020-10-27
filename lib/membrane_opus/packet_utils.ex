@@ -1,8 +1,52 @@
 defmodule Membrane.Opus.PacketUtils do
   @moduledoc false
 
+  @toc_config_map %{
+    0 => {:silk, :narrow, 10_000},
+    1 => {:silk, :narrow, 20_000},
+    2 => {:silk, :narrow, 40_000},
+    3 => {:silk, :narrow, 60_000},
+    4 => {:silk, :medium, 10_000},
+    5 => {:silk, :medium, 20_000},
+    6 => {:silk, :medium, 40_000},
+    7 => {:silk, :medium, 60_000},
+    8 => {:silk, :wide, 10_000},
+    9 => {:silk, :wide, 20_000},
+    10 => {:silk, :wide, 40_000},
+    11 => {:silk, :wide, 60_000},
+    12 => {:hybrid, :super_wide, 10_000},
+    13 => {:hybrid, :super_wide, 20_000},
+    14 => {:hybrid, :full, 10_000},
+    15 => {:hybrid, :full, 20_000},
+    16 => {:celt, :narrow, 2_500},
+    17 => {:celt, :narrow, 5_000},
+    18 => {:celt, :narrow, 10_000},
+    19 => {:celt, :narrow, 20_000},
+    20 => {:celt, :wide, 2_500},
+    21 => {:celt, :wide, 5_000},
+    22 => {:celt, :wide, 10_000},
+    23 => {:celt, :wide, 20_000},
+    24 => {:celt, :super_wide, 2_500},
+    25 => {:celt, :super_wide, 5_000},
+    26 => {:celt, :super_wide, 10_000},
+    27 => {:celt, :super_wide, 20_000},
+    28 => {:celt, :full, 2_500},
+    29 => {:celt, :full, 5_000},
+    30 => {:celt, :full, 10_000},
+    31 => {:celt, :full, 20_000}
+  }
+
   def parse_toc(<<config::5, stereo_flag::1, code::2, data::binary>>) do
-    {:ok, config, stereo_flag == 1, code, data}
+    {mode, bandwidth, frame_duration} = Map.fetch!(@toc_config_map, config)
+
+    {:ok,
+     %{
+       mode: mode,
+       bandwidth: bandwidth,
+       frame_duration: Membrane.Time.microseconds(frame_duration),
+       stereo?: stereo_flag == 1,
+       code: code
+     }, data}
   end
 
   def parse_toc(_data), do: :end_of_data
