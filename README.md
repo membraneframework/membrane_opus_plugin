@@ -40,50 +40,70 @@ brew install opus
 ## Usage example
 
 ### Encoder 
-Example encoder usage: 
+Encode sample raw file and save it as opus file: 
 ```elixir
-elements = [
-  source: %Membrane.Element.File.Source{
-    location: @input_path
-  },
-  encoder: %Membrane.Opus.Encoder{
-    application: :audio,
-    input_caps: %Raw{
-      channels: 2,
-      format: :s16le,
-      sample_rate: 48_000
-    }
-  },
-  sink: %Membrane.Element.File.Sink{
-    location: @output_path
-  }
-]
+defmodule Membrane.ReleaseTest.Pipeline do
+  use Membrane.Pipeline
 
-links = [
-  link(:source)
-  |> to(:encoder)
-  |> to(:sink)
-]
+  alias Membrane.Caps.Audio.Raw
+
+  @impl true
+  def handle_init(_) do
+    children = [
+      source: %Membrane.Element.File.Source{
+        location: "/tmp/input.raw"
+      },
+      encoder: %Membrane.Opus.Encoder{
+        application: :audio,
+        input_caps: %Raw{
+          channels: 2,
+          format: :s16le,
+          sample_rate: 48_000
+        }
+      },
+      sink: %Membrane.Element.File.Sink{
+        location: "/tmp/output.opus"
+      }
+    ]
+
+    links = [
+      link(:source)
+      |> to(:encoder)
+      |> to(:sink)
+    ]
+
+    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+  end
+end
 ```
 
 ### Decoder
-Example decoder usage:
+Decode sample opus file and save it as raw file: 
 ```elixir
-elements = [
-  source: %Membrane.Element.File.Source{
-    location: @input_path
-  },
-  opus: Membrane.Opus.Decoder,
-  sink: %Membrane.Element.File.Sink{
-    location: @output_path
-  }
-]
+defmodule Membrane.ReleaseTest.Pipeline2 do
+  use Membrane.Pipeline
 
-links = [
-  link(:source) 
-  |> to(:opus) 
-  |> to(:sink)
-]
+  @impl true
+  def handle_init(_) do
+    children = [
+      source: %Membrane.Element.File.Source{
+        location: "/tmp/input.opus"
+      },
+      opus: Membrane.Opus.Decoder,
+      sink: %Membrane.Element.File.Sink{
+        location: "/tmp/output.raw"
+      }
+    ]
+
+    links = [
+      link(:source)
+      |> to(:opus)
+      |> to(:sink)
+    ]
+
+    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+  end
+end
 ```
 
 For more information please refer to `Membrane.Opus.Encoder`/`Membrane.Opus.Decoder` module documentation or our tests.
