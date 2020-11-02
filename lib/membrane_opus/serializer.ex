@@ -6,11 +6,16 @@ defmodule Membrane.Opus.Serializer do
   """
   use Membrane.Filter
 
-  alias Membrane.Buffer
-  alias Membrane.Opus
+  alias Membrane.{Buffer, Opus, Stream}
   alias Membrane.Opus.PacketUtils
 
-  def_input_pad :input, demand_unit: :buffers, caps: {Opus, self_delimiting?: false}
+  def_input_pad :input,
+    demand_unit: :buffers,
+    caps: [
+      {Opus, self_delimiting?: false},
+      {Stream, type: :packet_stream, content: one_of([nil, Opus])}
+    ]
+
   def_output_pad :output, caps: {Opus, self_delimiting?: true}
 
   @impl true
@@ -31,7 +36,7 @@ defmodule Membrane.Opus.Serializer do
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
     %Buffer{payload: payload} = buffer
-    {:ok, %{code: code}, data} = PacketUtils.parse_toc(payload)
+    {:ok, %{code: code}, data} = PacketUtils.skip_toc(payload)
     {:ok, mode, frames, padding, data} = PacketUtils.skip_code(code, data)
     {:ok, frames_size, body} = PacketUtils.skip_frame_sizes(mode, data, max(0, frames - 1))
     header_size = byte_size(payload) - byte_size(body)

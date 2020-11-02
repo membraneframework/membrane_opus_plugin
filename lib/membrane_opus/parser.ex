@@ -6,11 +6,13 @@ defmodule Membrane.Opus.Parser do
   """
   use Membrane.Filter
 
-  alias Membrane.Buffer
-  alias Membrane.Opus
+  alias Membrane.{Buffer, Opus, Stream}
   alias Membrane.Opus.PacketUtils
 
-  def_input_pad :input, demand_unit: :buffers, caps: :any
+  def_input_pad :input,
+    demand_unit: :buffers,
+    caps: [{Opus, self_delimiting?: true}, {Stream, content: one_of([Opus, nil])}]
+
   def_output_pad :output, caps: {Opus, self_delimiting?: false}
 
   @impl true
@@ -19,8 +21,8 @@ defmodule Membrane.Opus.Parser do
   end
 
   @impl true
-  def handle_prepared_to_playing(_ctx, state) do
-    {{:ok, caps: {:output, %Opus{self_delimiting?: false}}}, state}
+  def handle_caps(:input, _caps, _ctx, state) do
+    {:ok, state}
   end
 
   @impl true
@@ -29,8 +31,18 @@ defmodule Membrane.Opus.Parser do
   end
 
   @impl true
-  def handle_process(:input, buffer, _ctx, state) do
-    {payloads, acc_payload} = parse_packets(state.acc_payload <> buffer.payload, [])
+  def handle_process(:input, buffer, ctx, state) do
+    payload = state.acc_payload <> buffer.payload
+
+    caps =
+      if !ctx.pads.output.caps do
+        {:ok, %{channels: channels}, _data} = PacketUtils.skip_toc(payload)
+        [caps: {:output, %Opus{channels: channels}}]
+      else
+        []
+      end
+
+    {payloads, acc_payload} = parse_packets(payload, [])
 
     {buffers, timestamp} =
       Enum.map_reduce(payloads, state.timestamp, fn {payload, duration}, timestamp ->
@@ -38,12 +50,12 @@ defmodule Membrane.Opus.Parser do
       end)
 
     state = %{state | acc_payload: acc_payload, timestamp: timestamp}
-    {{:ok, buffer: {:output, buffers}, redemand: :output}, state}
+    {{:ok, caps ++ [buffer: {:output, buffers}, redemand: :output]}, state}
   end
 
   defp parse_packets(payload, acc) do
     with {:ok, %{frame_duration: frame_duration, code: code}, data} <-
-           PacketUtils.parse_toc(payload),
+           PacketUtils.skip_toc(payload),
          {:ok, mode, frames, padding, data} <- PacketUtils.skip_code(code, data),
          {:ok, _preserved_frames_size, rest} <-
            PacketUtils.skip_frame_sizes(mode, data, max(0, frames - 1)),

@@ -36,7 +36,7 @@ defmodule Membrane.Opus.PacketUtils do
     31 => {:celt, :full, 20_000}
   }
 
-  def parse_toc(<<config::5, stereo_flag::1, code::2, data::binary>>) do
+  def skip_toc(<<config::5, stereo_flag::1, code::2, data::binary>>) do
     {mode, bandwidth, frame_duration} = Map.fetch!(@toc_config_map, config)
 
     {:ok,
@@ -44,12 +44,12 @@ defmodule Membrane.Opus.PacketUtils do
        mode: mode,
        bandwidth: bandwidth,
        frame_duration: Membrane.Time.microseconds(frame_duration),
-       stereo?: stereo_flag == 1,
+       channels: stereo_flag + 1,
        code: code
      }, data}
   end
 
-  def parse_toc(_data), do: :end_of_data
+  def skip_toc(_data), do: :end_of_data
 
   @spec skip_code(code :: integer, data :: binary) ::
           {:cbr | :vbr, frames :: integer, padding :: integer, data :: binary}
