@@ -71,14 +71,15 @@ defmodule Membrane.Opus.PacketUtils do
   def skip_code(1, data), do: {:ok, :cbr, 2, 0, data}
   def skip_code(2, data), do: {:ok, :vbr, 2, 0, data}
 
-  def skip_code(3, <<mode::1, 1::1, frames::6, pad_len::8, data::binary>>) do
+  def skip_code(3, <<mode::1, padding_present?::1, frames::6, data::binary>>) do
     mode = if mode == 0, do: :cbr, else: :vbr
-    {:ok, mode, frames, pad_len, data}
-  end
 
-  def skip_code(3, <<mode::1, 0::1, frames::6, data::binary>>) do
-    mode = if mode == 0, do: :cbr, else: :vbr
-    {:ok, mode, frames, 0, data}
+    skip_pad_len_result =
+      if padding_present? == 1, do: skip_padding_length(data, 0), else: {:ok, 0, data}
+
+    with {:ok, pad_len, data} <- skip_pad_len_result do
+      {:ok, mode, frames, pad_len, data}
+    end
   end
 
   def skip_code(_code, _data), do: :end_of_data
@@ -119,4 +120,12 @@ defmodule Membrane.Opus.PacketUtils do
     size = size - 252
     <<252 + rem(size, 4), div(size, 4)>>
   end
+
+  defp skip_padding_length(<<255, data::binary>>, acc_padding),
+    do: skip_padding_length(data, acc_padding + 254)
+
+  defp skip_padding_length(<<padding, data::binary>>, acc_padding),
+    do: {:ok, padding + acc_padding, data}
+
+  defp skip_padding_length(<<>>, _acc_padding), do: :end_of_data
 end
