@@ -1,6 +1,7 @@
 defmodule Membrane.Opus.PacketUtils do
   @moduledoc false
 
+  # Refer to https://tools.ietf.org/html/rfc6716#section-3.1
   @toc_config_map %{
     0 => {:silk, :narrow, 10_000},
     1 => {:silk, :narrow, 20_000},
