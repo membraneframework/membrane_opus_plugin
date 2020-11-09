@@ -2,6 +2,9 @@ defmodule Membrane.Opus.Serializer do
   @moduledoc """
   Converts Opus stream to self-delimiting version.
 
+  In the basic version of Opus packet coding, one frame size needs to be derived from
+  the size of entire packet. This serializer adds the lacking size to each packet header,
+  and thus converts packets to self-delimiting version.
   See https://tools.ietf.org/html/rfc6716#appendix-B for details.
   """
   use Membrane.Filter
@@ -37,11 +40,11 @@ defmodule Membrane.Opus.Serializer do
   def handle_process(:input, buffer, _ctx, state) do
     %Buffer{payload: payload} = buffer
     {:ok, %{code: code}, data} = PacketUtils.skip_toc(payload)
-    {:ok, mode, frames, padding, data} = PacketUtils.skip_code(code, data)
-    {:ok, frames_size, body} = PacketUtils.skip_frame_sizes(mode, data, max(0, frames - 1))
+    {:ok, mode, frames_cnt, padding_len, data} = PacketUtils.skip_code(code, data)
+    {:ok, frames_size, body} = PacketUtils.skip_frame_sizes(mode, data, max(0, frames_cnt - 1))
     header_size = byte_size(payload) - byte_size(body)
     <<header::binary-size(header_size), _rest::binary>> = payload
-    last_frame_size = PacketUtils.encode_frame_size(byte_size(body) - frames_size - padding)
+    last_frame_size = PacketUtils.encode_frame_size(byte_size(body) - frames_size - padding_len)
     buffer = %Buffer{buffer | payload: header <> last_frame_size <> body}
     {{:ok, buffer: {:output, buffer}}, state}
   end

@@ -15,7 +15,6 @@ defmodule Membrane.Opus.Encoder do
   @list_type allowed_channels :: [1, 2]
 
   @list_type allowed_applications :: [:voip, :audio, :low_delay]
-  @default_application :audio
 
   @list_type allowed_sample_rates :: [8000, 12_000, 16_000, 24_000, 48_000]
 
@@ -26,7 +25,7 @@ defmodule Membrane.Opus.Encoder do
 
   def_options application: [
                 spec: allowed_applications(),
-                default: @default_application,
+                default: :audio,
                 description: """
                 Output type (similar to compression amount). See https://opus-codec.org/docs/opus_api-1.3.1/group__opus__encoder.html#gaa89264fd93c9da70362a0c9b96b9ca88.
                 """

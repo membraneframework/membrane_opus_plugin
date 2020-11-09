@@ -2,6 +2,10 @@ defmodule Membrane.Opus.Parser do
   @moduledoc """
   Parses self-delimiting Opus stream.
 
+  The self-delimiting version of Opus packet contains all the information about frame sizes
+  needed to separate the packet from byte stream and decode it. This parser drops one frame size
+  from each packet header, converting packets to the basic version. The remaining frame size needs
+  to be derived from entire packet size.
   See https://tools.ietf.org/html/rfc6716#appendix-B for details.
   """
   use Membrane.Filter
@@ -17,7 +21,7 @@ defmodule Membrane.Opus.Parser do
 
   @impl true
   def handle_init(_opts) do
-    {:ok, %{acc_payload: <<>>, timestamp: 0}}
+    {:ok, %{partial_packet: <<>>, timestamp: 0}}
   end
 
   @impl true
@@ -32,7 +36,7 @@ defmodule Membrane.Opus.Parser do
 
   @impl true
   def handle_process(:input, buffer, ctx, state) do
-    payload = state.acc_payload <> buffer.payload
+    payload = state.partial_packet <> buffer.payload
 
     caps =
       if !ctx.pads.output.caps do
@@ -42,31 +46,34 @@ defmodule Membrane.Opus.Parser do
         []
       end
 
-    {payloads, acc_payload} = parse_packets(payload, [])
+    {payloads, partial_packet} = parse_packets(payload, [])
 
     {buffers, timestamp} =
       Enum.map_reduce(payloads, state.timestamp, fn {payload, duration}, timestamp ->
         {%Buffer{payload: payload, metadata: %{timestamp: timestamp}}, timestamp + duration}
       end)
 
-    state = %{state | acc_payload: acc_payload, timestamp: timestamp}
+    state = %{state | partial_packet: partial_packet, timestamp: timestamp}
     {{:ok, caps ++ [buffer: {:output, buffers}, redemand: :output]}, state}
   end
 
-  defp parse_packets(payload, acc) do
+  defp parse_packets(payload, parsed_packets) do
     with {:ok, %{frame_duration: frame_duration, code: code}, data} <-
            PacketUtils.skip_toc(payload),
-         {:ok, mode, frames, padding, data} <- PacketUtils.skip_code(code, data),
+         {:ok, mode, frames_cnt, padding_len, data} <- PacketUtils.skip_code(code, data),
          {:ok, _preserved_frames_size, rest} <-
-           PacketUtils.skip_frame_sizes(mode, data, max(0, frames - 1)),
+           PacketUtils.skip_frame_sizes(mode, data, max(0, frames_cnt - 1)),
          new_header_size = byte_size(payload) - byte_size(rest),
-         {:ok, frames_size, data} <- PacketUtils.skip_frame_sizes(mode, data, frames),
-         body_size = frames_size + padding,
-         <<body::binary-size(body_size), data::binary>> <- data do
+         {:ok, frames_size, data} <- PacketUtils.skip_frame_sizes(mode, data, frames_cnt),
+         body_size = frames_size + padding_len,
+         <<body::binary-size(body_size), remaining_packets::binary>> <- data do
       <<new_header::binary-size(new_header_size), _rest::binary>> = payload
-      parse_packets(data, [{new_header <> body, frame_duration * frames} | acc])
+
+      parse_packets(remaining_packets, [
+        {new_header <> body, frame_duration * frames_cnt} | parsed_packets
+      ])
     else
-      _end_of_data -> {Enum.reverse(acc), payload}
+      _end_of_data -> {Enum.reverse(parsed_packets), payload}
     end
   end
 end
