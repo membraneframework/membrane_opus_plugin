@@ -1,6 +1,8 @@
 defmodule Membrane.Opus.PacketUtils do
   @moduledoc false
 
+  alias Membrane.Opus
+
   # Refer to https://tools.ietf.org/html/rfc6716#section-3.1
   @toc_config_map %{
     0 => {:silk, :narrow, 10_000},
@@ -37,6 +39,16 @@ defmodule Membrane.Opus.PacketUtils do
     31 => {:celt, :full, 20_000}
   }
 
+  @spec skip_toc(data :: binary) ::
+          {:ok,
+           %{
+             mode: :silk | :hybrid | :celt,
+             bandwidth: :narrow | :medium | :wide | :super_wide | :full,
+             frame_duration: Membrane.Time.non_neg_t(),
+             channels: Opus.channels_t(),
+             code: 0..3
+           }, data :: binary}
+          | :end_of_data
   def skip_toc(<<config::5, stereo_flag::1, code::2, data::binary>>) do
     {mode, bandwidth, frame_duration} = Map.fetch!(@toc_config_map, config)
 
@@ -53,7 +65,8 @@ defmodule Membrane.Opus.PacketUtils do
   def skip_toc(_data), do: :end_of_data
 
   @spec skip_code(code :: integer, data :: binary) ::
-          {:cbr | :vbr, frames :: integer, padding :: integer, data :: binary}
+          {:ok, :cbr | :vbr, frames_count :: integer, padding_len :: integer, data :: binary}
+          | :end_of_data
   def skip_code(0, data), do: {:ok, :cbr, 1, 0, data}
   def skip_code(1, data), do: {:ok, :cbr, 2, 0, data}
   def skip_code(2, data), do: {:ok, :vbr, 2, 0, data}
@@ -70,10 +83,8 @@ defmodule Membrane.Opus.PacketUtils do
 
   def skip_code(_code, _data), do: :end_of_data
 
-  def skip_frames(_mode, data, 0) do
-    {:ok, data}
-  end
-
+  @spec skip_frame_sizes(mode :: :cbr | :vbr, data :: binary, frames_count :: integer) ::
+          {:ok, frames_size :: integer, data :: binary} | :end_of_data
   def skip_frame_sizes(:cbr, data, frames) do
     with {:ok, size, data} <- do_skip_frame_sizes(data, min(frames, 1), 0) do
       {:ok, frames * size, data}
@@ -92,6 +103,8 @@ defmodule Membrane.Opus.PacketUtils do
 
   defp do_skip_frame_sizes(_data, _frames, _total), do: :end_of_data
 
+  @spec skip_data(size :: non_neg_integer(), data :: binary) ::
+          {:ok, data :: binary()} | :end_of_data
   def skip_data(size, data) do
     case data do
       <<_to_skip::binary-size(size), data::binary>> -> {:ok, data}
@@ -99,6 +112,7 @@ defmodule Membrane.Opus.PacketUtils do
     end
   end
 
+  @spec encode_frame_size(pos_integer) :: binary
   def encode_frame_size(size) when size in 0..251, do: <<size>>
 
   def encode_frame_size(size) when size in 252..1275 do
