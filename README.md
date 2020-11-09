@@ -15,7 +15,7 @@ The package can be installed by adding `membrane_opus_plugin` to your list of de
 ```elixir
 def deps do
   [
-    {:membrane_opus_plugin, "~> 0.1.0"}
+    {:membrane_opus_plugin, "~> 0.2.0"}
   ]
 end
 ```
@@ -39,7 +39,74 @@ brew install opus
 
 ## Usage example
 
-TODO
+### Encoder 
+Encode sample raw file and save it as opus file: 
+```elixir
+defmodule Membrane.ReleaseTest.Pipeline do
+  use Membrane.Pipeline
+
+  alias Membrane.Caps.Audio.Raw
+
+  @impl true
+  def handle_init(_) do
+    children = [
+      source: %Membrane.Element.File.Source{
+        location: "/tmp/input.raw"
+      },
+      encoder: %Membrane.Opus.Encoder{
+        application: :audio,
+        input_caps: %Raw{
+          channels: 2,
+          format: :s16le,
+          sample_rate: 48_000
+        }
+      },
+      sink: %Membrane.Element.File.Sink{
+        location: "/tmp/output.opus"
+      }
+    ]
+
+    links = [
+      link(:source)
+      |> to(:encoder)
+      |> to(:sink)
+    ]
+
+    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+  end
+end
+```
+
+### Decoder
+Decode sample opus file and save it as raw file: 
+```elixir
+defmodule Membrane.ReleaseTest.Pipeline2 do
+  use Membrane.Pipeline
+
+  @impl true
+  def handle_init(_) do
+    children = [
+      source: %Membrane.Element.File.Source{
+        location: "/tmp/input.opus"
+      },
+      opus: Membrane.Opus.Decoder,
+      sink: %Membrane.Element.File.Sink{
+        location: "/tmp/output.raw"
+      }
+    ]
+
+    links = [
+      link(:source)
+      |> to(:opus)
+      |> to(:sink)
+    ]
+
+    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+  end
+end
+```
+
+For more information please refer to `Membrane.Opus.Encoder`/`Membrane.Opus.Decoder` module documentation or our tests.
 
 ## Copyright and License
 
