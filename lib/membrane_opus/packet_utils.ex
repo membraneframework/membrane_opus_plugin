@@ -86,9 +86,9 @@ defmodule Membrane.Opus.PacketUtils do
 
   @spec skip_frame_sizes(mode :: :cbr | :vbr, data :: binary, frames_count :: integer) ::
           {:ok, frames_size :: integer, data :: binary} | :end_of_data
-  def skip_frame_sizes(:cbr, data, frames) do
-    with {:ok, size, data} <- do_skip_frame_sizes(data, min(frames, 1), 0) do
-      {:ok, frames * size, data}
+  def skip_frame_sizes(:cbr, data, frames_count) do
+    with {:ok, size, data} <- do_skip_frame_sizes(data, min(frames_count, 1), 0) do
+      {:ok, frames_count * size, data}
     end
   end
 
