@@ -61,6 +61,7 @@ defmodule Membrane.ReleaseTest.Pipeline do
           sample_rate: 48_000
         }
       },
+      serializer: Membrane.Opus.Serializer,
       sink: %Membrane.Element.File.Sink{
         location: "/tmp/output.opus"
       }
@@ -69,6 +70,7 @@ defmodule Membrane.ReleaseTest.Pipeline do
     links = [
       link(:source)
       |> to(:encoder)
+      |> to(:serializer)
       |> to(:sink)
     ]
 
@@ -89,6 +91,7 @@ defmodule Membrane.ReleaseTest.Pipeline2 do
       source: %Membrane.Element.File.Source{
         location: "/tmp/input.opus"
       },
+      parser: Membrane.Opus.Parser,
       opus: Membrane.Opus.Decoder,
       sink: %Membrane.Element.File.Sink{
         location: "/tmp/output.raw"
@@ -97,6 +100,7 @@ defmodule Membrane.ReleaseTest.Pipeline2 do
 
     links = [
       link(:source)
+      |> to(:parser)
       |> to(:opus)
       |> to(:sink)
     ]
