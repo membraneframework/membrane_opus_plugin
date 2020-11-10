@@ -3,7 +3,7 @@ defmodule Membrane.Opus.Parser do
   Parses self-delimiting Opus stream.
 
   The self-delimiting version of Opus packet contains all the information about frame sizes
-  needed to separate the packet from byte stream and decode it. This parser drops one frame size
+  needed to separate the packet from byte stream and decode it. This parser drops the last frame size
   from each packet header, converting packets to the basic version. The remaining frame size needs
   to be derived from entire packet size.
   See https://tools.ietf.org/html/rfc6716#appendix-B for details.
