@@ -6,7 +6,7 @@ defmodule Membrane.Opus.Decoder do
   use Membrane.Filter
 
   alias __MODULE__.Native
-  alias Membrane.{Buffer, Opus, Stream}
+  alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Caps.Audio.Raw
   alias Membrane.Opus.PacketUtils
 
@@ -26,7 +26,7 @@ defmodule Membrane.Opus.Decoder do
     demand_unit: :buffers,
     caps: [
       {Opus, self_delimiting?: false},
-      {Stream, type: :packet_stream, content: one_of([Opus, nil])}
+      {RemoteStream, type: :packetized, content_format: one_of([Opus, nil])}
     ]
 
   def_output_pad :output, caps: {Raw, format: :s16le}

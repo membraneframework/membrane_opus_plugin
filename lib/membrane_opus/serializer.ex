@@ -9,14 +9,14 @@ defmodule Membrane.Opus.Serializer do
   """
   use Membrane.Filter
 
-  alias Membrane.{Buffer, Opus, Stream}
+  alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Opus.PacketUtils
 
   def_input_pad :input,
     demand_unit: :buffers,
     caps: [
       {Opus, self_delimiting?: false},
-      {Stream, type: :packet_stream, content: one_of([nil, Opus])}
+      {RemoteStream, type: :packetized, content_format: one_of([nil, Opus])}
     ]
 
   def_output_pad :output, caps: {Opus, self_delimiting?: true}

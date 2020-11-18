@@ -10,12 +10,12 @@ defmodule Membrane.Opus.Parser do
   """
   use Membrane.Filter
 
-  alias Membrane.{Buffer, Opus, Stream}
+  alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Opus.PacketUtils
 
   def_input_pad :input,
     demand_unit: :buffers,
-    caps: [{Opus, self_delimiting?: true}, {Stream, content: one_of([Opus, nil])}]
+    caps: [{Opus, self_delimiting?: true}, {RemoteStream, content_format: one_of([Opus, nil])}]
 
   def_output_pad :output, caps: {Opus, self_delimiting?: false}
 
