@@ -1,6 +1,17 @@
 defmodule Membrane.Opus.Parser do
   @moduledoc """
-  Parses a raw incoming Opus stream and adds caps information.
+  Parses a raw incoming Opus stream and adds caps information, as well as metadata.
+
+  Adds the following metadata:
+
+  frame_size :: 2.5 | 5 | 10 | 20 | 40 | 60
+    Number of milliseconds per frame encoded in this packet.
+
+  frame_lengths :: [non_neg_integer()]
+    Ordered list of bytes used to encode each frame in this packet.
+    The length of this list is also the number of frames encoded in this packet.
+    However, a value of 0 indicates a dropped frame and should be accounted
+    for when using this field.
   """
 
   use Membrane.Filter
@@ -33,7 +44,7 @@ defmodule Membrane.Opus.Parser do
   @impl true
   def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
     with {:ok, {configuration_number, stereo_flag, frame_packing}} <- parse_toc_byte(data),
-         {:ok, {mode, bandwidth, frame_size}} <- parse_configuration(configuration_number),
+         {:ok, {_mode, _bandwidth, frame_size}} <- parse_configuration(configuration_number),
          {:ok, channels} <- parse_channels(stereo_flag),
          {:ok, {frame_lengths, header_length}} <- parse_frame_lengths(frame_packing, data),
          {:ok, data} <- self_delimit(data, frame_lengths, header_length, state) do
@@ -42,10 +53,6 @@ defmodule Membrane.Opus.Parser do
         self_delimiting?: state.self_delimit?
       }
 
-      # we're passing the frame_lengths and frame_size as metadata because
-      # these two data will allow us to determine the total number of ms
-      # encoded in this packet. that is necessary for determining the granule
-      # position in an ogg container
       buffer = %Buffer{
         payload: data,
         metadata: %{

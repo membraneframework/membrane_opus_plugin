@@ -5,7 +5,7 @@
 
 #define MAX_PACKET 1500
 
-char *get_error(int err_code) {
+static char *get_error(int err_code) {
   switch (err_code) {
     case OPUS_BAD_ARG:
       return "Bad argument";

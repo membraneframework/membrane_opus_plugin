@@ -1,57 +1,221 @@
 defmodule Membrane.Opus.Parser.ParserTest do
   use ExUnit.Case, async: true
 
-  alias Membrane.Element
-  alias Membrane.Caps.Audio.Raw
-  alias Membrane.Testing
-  alias Membrane.Opus.{Encoder, Parser}
-  import Membrane.ParentSpec
+  alias Membrane.Opus.Parser
+  alias Membrane.{Opus, Buffer}
+  alias Membrane.Testing.{Source, Sink, Pipeline}
+
   import Membrane.Testing.Assertions
 
-  @input_path "/Users/gweisbrod/Desktop/input.wav"
-  @output_path "/Users/gweisbrod/Desktop/example.opus"
-
-  setup do
-    elements = [
-      source: %Element.File.Source{
-        location: @input_path
-      },
-      encoder: %Encoder{
-        application: :audio,
-        input_caps: %Raw{
+  test "non-self-delimiting" do
+    inputs_and_expectations = [
+      {
+        # dropped packet, code 0
+        <<4>>,
+        %Opus{
           channels: 2,
-          format: :s16le,
-          sample_rate: 48_000
+          self_delimiting?: false
+        },
+        %{
+          frame_size: 10,
+          frame_lengths: [0]
         }
       },
-      parser: Parser,
-      payloader: Membrane.Ogg.Payloader.Opus,
-      sink: %Element.File.Sink{
-        location: @output_path
+      {
+        # code 1
+        <<121, 0, 0, 0, 0>>,
+        %Opus{
+          channels: 1,
+          self_delimiting?: false
+        },
+        %{
+          frame_size: 20,
+          frame_lengths: [2, 2]
+        }
+      },
+      {
+        # code 2
+        <<198, 1, 0, 0, 0, 0>>,
+        %Opus{
+          channels: 2,
+          self_delimiting?: false
+        },
+        %{
+          frame_size: 2.5,
+          frame_lengths: [1, 3]
+        }
+      },
+      {
+        # code 3 cbr - no padding
+        <<199, 3, 0, 0, 0>>,
+        %Opus{
+          channels: 2,
+          self_delimiting?: false
+        },
+        %{
+          frame_size: 2.5,
+          frame_lengths: [1, 1, 1]
+        }
+      },
+      {
+        # code 3 cbr - padding
+        <<199, 67, 2, 0, 0, 0, 0, 0>>,
+        %Opus{
+          channels: 2,
+          self_delimiting?: false
+        },
+        %{
+          frame_size: 2.5,
+          frame_lengths: [1, 1, 1]
+        }
+      },
+      {
+        # code 3 vbr - no padding
+        <<199, 131, 1, 2, 0, 0, 0, 0>>,
+        %Opus{
+          channels: 2,
+          self_delimiting?: false
+        },
+        %{
+          frame_size: 2.5,
+          frame_lengths: [1, 2, 1]
+        }
       }
     ]
 
-    links = [
-      link(:source)
-      |> to(:encoder)
-      |> to(:parser)
-      |> to(:payloader)
-      |> to(:sink)
-    ]
+    inputs =
+      inputs_and_expectations
+      |> Enum.map(fn {input, _caps, _meta} -> input end)
 
-    {:ok, pipeline_pid} =
-      Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-        elements: elements,
-        links: links
-      })
+    options = %Pipeline.Options{
+      elements: [
+        source: %Source{output: inputs},
+        parser: Parser,
+        sink: Sink
+      ]
+    }
 
-    {:ok, %{pipeline_pid: pipeline_pid}}
+    {:ok, pipeline} = Pipeline.start_link(options)
+    Pipeline.play(pipeline)
+
+    assert_start_of_stream(pipeline, :sink)
+
+    inputs_and_expectations
+    |> Enum.each(fn {input, caps, meta} ->
+      assert_sink_caps(pipeline, :sink, ^caps)
+      assert_sink_buffer(pipeline, :sink, %Buffer{payload: ^input, metadata: ^meta})
+    end)
+
+    assert_end_of_stream(pipeline, :sink)
+    refute_sink_buffer(pipeline, :sink, _, 0)
   end
 
-  test "practice", context do
-    %{pipeline_pid: pipeline_pid} = context
-    Membrane.Pipeline.play(pipeline_pid)
-    assert_start_of_stream(pipeline_pid, :sink)
-    assert_end_of_stream(pipeline_pid, :sink, _, 5000)
+  test "self-delimiting" do
+    inputs_and_expectations = [
+      {
+        # dropped packet, code 0
+        <<4>>,
+        <<4, 0>>,
+        %Opus{
+          channels: 2,
+          self_delimiting?: true
+        },
+        %{
+          frame_size: 10,
+          frame_lengths: [0]
+        }
+      },
+      {
+        # code 1
+        <<121, 0, 0, 0, 0>>,
+        <<121, 2, 0, 0, 0, 0>>,
+        %Opus{
+          channels: 1,
+          self_delimiting?: true
+        },
+        %{
+          frame_size: 20,
+          frame_lengths: [2, 2]
+        }
+      },
+      {
+        # code 2
+        <<198, 1, 0, 0, 0, 0>>,
+        <<198, 1, 3, 0, 0, 0, 0>>,
+        %Opus{
+          channels: 2,
+          self_delimiting?: true
+        },
+        %{
+          frame_size: 2.5,
+          frame_lengths: [1, 3]
+        }
+      },
+      {
+        # code 3 cbr - no padding
+        <<199, 3, 0, 0, 0>>,
+        <<199, 3, 1, 0, 0, 0>>,
+        %Opus{
+          channels: 2,
+          self_delimiting?: true
+        },
+        %{
+          frame_size: 2.5,
+          frame_lengths: [1, 1, 1]
+        }
+      },
+      {
+        # code 3 cbr - padding
+        <<199, 67, 2, 0, 0, 0, 0, 0>>,
+        <<199, 67, 2, 1, 0, 0, 0, 0, 0>>,
+        %Opus{
+          channels: 2,
+          self_delimiting?: true
+        },
+        %{
+          frame_size: 2.5,
+          frame_lengths: [1, 1, 1]
+        }
+      },
+      {
+        # code 3 vbr - no padding
+        <<199, 131, 1, 2, 0, 0, 0, 0>>,
+        <<199, 131, 1, 2, 1, 0, 0, 0, 0>>,
+        %Opus{
+          channels: 2,
+          self_delimiting?: true
+        },
+        %{
+          frame_size: 2.5,
+          frame_lengths: [1, 2, 1]
+        }
+      }
+    ]
+
+    inputs =
+      inputs_and_expectations
+      |> Enum.map(fn {input, _output, _caps, _meta} -> input end)
+
+    options = %Pipeline.Options{
+      elements: [
+        source: %Source{output: inputs},
+        parser: %Parser{self_delimit?: true},
+        sink: Sink
+      ]
+    }
+
+    {:ok, pipeline} = Pipeline.start_link(options)
+    Pipeline.play(pipeline)
+
+    assert_start_of_stream(pipeline, :sink)
+
+    inputs_and_expectations
+    |> Enum.each(fn {_input, output, caps, meta} ->
+      assert_sink_caps(pipeline, :sink, ^caps)
+      assert_sink_buffer(pipeline, :sink, %Buffer{payload: ^output, metadata: ^meta})
+    end)
+
+    assert_end_of_stream(pipeline, :sink)
+    refute_sink_buffer(pipeline, :sink, _, 0)
   end
 end
