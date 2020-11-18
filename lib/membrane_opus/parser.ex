@@ -21,6 +21,11 @@ defmodule Membrane.Opus.Parser do
   def_output_pad :output, caps: Opus
 
   @impl true
+  def handle_init(%__MODULE__{} = options) do
+    {:ok, options |> Map.from_struct()}
+  end
+
+  @impl true
   def handle_demand(:output, bufs, :buffers, _ctx, state) do
     {{:ok, demand: {:input, bufs}}, state}
   end
