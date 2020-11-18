@@ -7,6 +7,16 @@ defmodule Membrane.Opus.Parser do
 
   alias Membrane.{Buffer, Opus}
 
+  def_options self_delimit?: [
+                spec: boolean(),
+                default: false,
+                description: """
+                If true, will mutate the output to self-delimit the Opus input.
+
+                See https://tools.ietf.org/html/rfc6716#appendix-B for details.
+                """
+              ]
+
   def_input_pad :input, demand_unit: :buffers, caps: :any
   def_output_pad :output, caps: Opus
 
@@ -20,13 +30,15 @@ defmodule Membrane.Opus.Parser do
     with {:ok, {configuration_number, stereo_flag, frame_packing}} <- parse_toc_byte(data),
          {:ok, {mode, bandwidth, frame_size}} <- parse_configuration(configuration_number),
          {:ok, channels} <- parse_channels(stereo_flag),
-         {:ok, frame_lengths} <- parse_frame_lengths(frame_packing, data) do
+         {:ok, {frame_lengths, header_length}} <- parse_frame_lengths(frame_packing, data),
+         {:ok, data} <- self_delimit(data, frame_lengths, header_length, state) do
       caps = %Opus{
         mode: mode,
         bandwidth: bandwidth,
         frame_size: frame_size,
         channels: channels,
-        frame_lengths: frame_lengths
+        frame_lengths: frame_lengths,
+        self_delimiting?: state.self_delimit?
       }
 
       {{:ok, caps: {:output, caps}, buffer: {:output, %Buffer{payload: data}}}, state}
@@ -34,6 +46,23 @@ defmodule Membrane.Opus.Parser do
       {:error, reason} -> {{:error, reason}, state}
     end
   end
+
+  # handles self-delimiting
+  defp self_delimit(data, frame_lengths, header_length, state) when state.self_delimit? do
+    <<head::binary-size(header_length), body::binary>> = data
+
+    output =
+      [
+        head,
+        frame_lengths |> List.last() |> encode_frame_length(),
+        body
+      ]
+      |> :binary.list_to_bin()
+
+    {:ok, output}
+  end
+
+  defp self_delimit(data, _frame_lengths, _header_length, _state), do: {:ok, data}
 
   # parses config number, stereo flag, and frame packing strategy from the TOC
   # byte
@@ -79,13 +108,11 @@ defmodule Membrane.Opus.Parser do
       29 -> {:ok, {:celt, :full, 5}}
       30 -> {:ok, {:celt, :full, 10}}
       31 -> {:ok, {:celt, :full, 20}}
-      _ -> {:error, "Invalid configuration number from TOC byte"}
     end
   end
 
   # determines number of channels
   defp parse_channels(stereo_flag) when stereo_flag in 0..1, do: {:ok, stereo_flag + 1}
-  defp parse_channels(_stereo_flag), do: {:error, "Invalid stereo flag from TOC byte"}
 
   # returns ordered list of frame lengths
   defp parse_frame_lengths(frame_packing, data) do
@@ -93,31 +120,22 @@ defmodule Membrane.Opus.Parser do
     case frame_packing do
       # there is one frame in this packet
       0 ->
-        {:ok, [byte_size(data) - 1]}
+        {:ok, {[byte_size(data) - 1], 1}}
 
       # there are two equal-length frames in this packet
       1 ->
         frame_length = div(byte_size(data) - 1, 2)
-        {:ok, [frame_length, frame_length]}
+        {:ok, {[frame_length, frame_length], 1}}
 
       # there are two non-equal-length frames in this packet
       2 ->
-        {:ok, code_two_lengths(data)}
+        {first_len, bytes_used} = calculate_frame_length(data, 1)
+        {:ok, {[first_len, byte_size(data) - 1 - bytes_used - first_len], 1 + bytes_used}}
 
       # there are two or more frames of arbitrary size
       3 ->
         {:ok, code_three_lengths(data)}
-
-      _ ->
-        {:error, "Invalid frame packing strategy from TOC byte"}
     end
-  end
-
-  # calculates frame lengths for Code 2 packets
-  defp code_two_lengths(data) do
-    {first_len, size_bytes_used} = calculate_frame_length(data, 1)
-    # subtracting 1 for the TOC byte 
-    [first_len, byte_size(data) - 1 - size_bytes_used - first_len]
   end
 
   # calculates frame lengths for Code 3 packets
@@ -146,11 +164,13 @@ defmodule Membrane.Opus.Parser do
         {[length | lengths], byte_offset + length_encoding_size}
       end)
 
-    offset_to_last_frame = byte_offset + Enum.sum(lengths)
-    <<_head::binary-size(offset_to_last_frame), last_frame_and_padding::binary>> = data
+    last_frame_length = byte_size(data) - byte_offset - Enum.sum(lengths) - padding_length
 
-    [byte_size(last_frame_and_padding) - padding_length | lengths]
-    |> Enum.reverse()
+    frame_lengths =
+      [last_frame_length | lengths]
+      |> Enum.reverse()
+
+    {frame_lengths, byte_offset}
   end
 
   defp code_three_cbr_lengths(data, padding_flag, frame_count) do
@@ -158,8 +178,11 @@ defmodule Membrane.Opus.Parser do
     # 1 for the TOC byte and another for the code 3 frame count byte
     frame_size = div(byte_size(data) - 2 - padding_encoding_length - padding_length, frame_count)
 
-    0..(frame_count - 1)
-    |> Enum.map(fn _i -> frame_size end)
+    frame_lengths =
+      0..(frame_count - 1)
+      |> Enum.map(fn _i -> frame_size end)
+
+    {frame_lengths, 2 + padding_encoding_length}
   end
 
   # calculates frame length of the frame starting at byte_offset, specifically
@@ -179,17 +202,24 @@ defmodule Membrane.Opus.Parser do
     end
   end
 
+  # opposite of calculate_frame_length: given a length, encode it
+  defp encode_frame_length(length) do
+    if length < 252 do
+      <<length::size(8)>>
+    else
+      <<252 + rem(length - 252, 4)::size(8), div(length - 252, 4)::size(8)>>
+    end
+  end
+
   # calculates total packet padding length, specifically for code 3 packets,
   # and the number of bytes used to encode the padding length
-  defp calculate_padding_length(padding_flag, data) do
-    if padding_flag == 1 do
-      # TOC byte and code 3 frame count byte
-      initial_offset = 2
-      {padding_length, offset} = do_calculate_padding_length(data, initial_offset)
-      {padding_length, offset - initial_offset}
-    else
-      {0, 0}
-    end
+  defp calculate_padding_length(padding_flag, _data) when padding_flag == 0, do: {0, 0}
+
+  defp calculate_padding_length(padding_flag, data) when padding_flag == 1 do
+    # TOC byte and code 3 frame count byte
+    initial_offset = 2
+    {padding_length, offset} = do_calculate_padding_length(data, initial_offset)
+    {padding_length, offset - initial_offset}
   end
 
   defp do_calculate_padding_length(data, byte_offset, current_padding \\ 0) do
