@@ -38,15 +38,23 @@ defmodule Membrane.Opus.Parser do
          {:ok, {frame_lengths, header_length}} <- parse_frame_lengths(frame_packing, data),
          {:ok, data} <- self_delimit(data, frame_lengths, header_length, state) do
       caps = %Opus{
-        mode: mode,
-        bandwidth: bandwidth,
-        frame_size: frame_size,
         channels: channels,
-        frame_lengths: frame_lengths,
         self_delimiting?: state.self_delimit?
       }
 
-      {{:ok, caps: {:output, caps}, buffer: {:output, %Buffer{payload: data}}}, state}
+      # we're passing the frame_lengths and frame_size as metadata because
+      # these two data will allow us to determine the total number of ms
+      # encoded in this packet. that is necessary for determining the granule
+      # position in an ogg container
+      buffer = %Buffer{
+        payload: data,
+        metadata: %{
+          frame_lengths: frame_lengths,
+          frame_size: frame_size
+        }
+      }
+
+      {{:ok, caps: {:output, caps}, buffer: {:output, buffer}}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
