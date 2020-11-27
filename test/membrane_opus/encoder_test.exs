@@ -5,7 +5,6 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   alias Membrane.Caps.Audio.Raw
   import Membrane.Testing.Assertions
   alias Membrane.Testing
-  alias Membrane.Element
   import Membrane.ParentSpec
 
   @input_path "test/fixtures/sample_input.raw"
@@ -16,7 +15,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     on_exit(fn -> File.rm(@output_path) end)
 
     elements = [
-      source: %Element.File.Source{location: @input_path},
+      source: %Membrane.File.Source{location: @input_path},
       encoder: %Opus.Encoder{
         application: :audio,
         input_caps: %Raw{
@@ -26,7 +25,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
         }
       },
       serializer: Opus.Serializer,
-      sink: %Element.File.Sink{location: @output_path}
+      sink: %Membrane.File.Sink{location: @output_path}
     ]
 
     links = [
