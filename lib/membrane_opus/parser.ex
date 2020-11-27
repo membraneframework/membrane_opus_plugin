@@ -62,8 +62,6 @@ defmodule Membrane.Opus.Parser do
       }
 
       {{:ok, caps: {:output, caps}, buffer: {:output, buffer}}, state}
-    else
-      {:error, reason} -> {{:error, reason}, state}
     end
   end
 
@@ -171,7 +169,7 @@ defmodule Membrane.Opus.Parser do
   end
 
   defp code_three_vbr_lengths(data, padding_flag, frame_count) do
-    {padding_length, padding_encoding_length} = calculate_padding_length(padding_flag, data)
+    {padding_length, padding_encoding_length} = calculate_padding_info(padding_flag, data)
     # 1 for the TOC byte and another for the code 3 frame count byte
     byte_offset = 2 + padding_encoding_length
 
@@ -194,7 +192,7 @@ defmodule Membrane.Opus.Parser do
   end
 
   defp code_three_cbr_lengths(data, padding_flag, frame_count) do
-    {padding_length, padding_encoding_length} = calculate_padding_length(padding_flag, data)
+    {padding_length, padding_encoding_length} = calculate_padding_info(padding_flag, data)
     # 1 for the TOC byte and another for the code 3 frame count byte
     frame_size = div(byte_size(data) - 2 - padding_encoding_length - padding_length, frame_count)
 
@@ -233,20 +231,20 @@ defmodule Membrane.Opus.Parser do
 
   # calculates total packet padding length, specifically for code 3 packets,
   # and the number of bytes used to encode the padding length
-  defp calculate_padding_length(padding_flag, _data) when padding_flag == 0, do: {0, 0}
+  defp calculate_padding_info(padding_flag, _data) when padding_flag == 0, do: {0, 0}
 
-  defp calculate_padding_length(padding_flag, data) when padding_flag == 1 do
+  defp calculate_padding_info(padding_flag, data) when padding_flag == 1 do
     # TOC byte and code 3 frame count byte
     initial_offset = 2
-    {padding_length, offset} = do_calculate_padding_length(data, initial_offset)
+    {padding_length, offset} = do_calculate_padding_info(data, initial_offset)
     {padding_length, offset - initial_offset}
   end
 
-  defp do_calculate_padding_length(data, byte_offset, current_padding \\ 0) do
+  defp do_calculate_padding_info(data, byte_offset, current_padding \\ 0) do
     <<_head::binary-size(byte_offset), padding::size(8), _rest::binary>> = data
 
     if padding == 255 do
-      do_calculate_padding_length(data, byte_offset + 1, current_padding + 254)
+      do_calculate_padding_info(data, byte_offset + 1, current_padding + 254)
     else
       {current_padding + padding, byte_offset + 1}
     end
