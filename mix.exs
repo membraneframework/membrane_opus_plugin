@@ -35,15 +35,15 @@ defmodule Membrane.Opus.Plugin.Mixfile do
 
   defp deps do
     [
-      {:membrane_core, "~> 0.5.0"},
+      {:membrane_core, "~> 0.6.0"},
       {:membrane_opus_format, "~> 0.3.0"},
       {:membrane_remote_stream_format, "~> 0.1.0"},
-      {:membrane_caps_audio_raw, "~> 0.2"},
+      {:membrane_caps_audio_raw, "~> 0.3.0"},
       {:unifex, "~> 0.3.2"},
-      {:membrane_common_c, "~> 0.4.0"},
+      {:membrane_common_c, "~> 0.5.0"},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.23", only: :dev},
-      {:membrane_element_file, "~> 0.3.0", only: :test}
+      {:membrane_file_plugin, "~> 0.5.0", only: :test}
     ]
   end
 

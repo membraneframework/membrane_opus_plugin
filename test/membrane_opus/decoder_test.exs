@@ -52,10 +52,10 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
     alias Membrane.Testing
 
     elements = [
-      source: %Membrane.Element.File.Source{location: @sample_path},
+      source: %Membrane.File.Source{location: @sample_path},
       parser: Opus.Parser,
       decoder: Opus.Decoder,
-      sink: %Membrane.Element.File.Sink{location: @output_path}
+      sink: %Membrane.File.Sink{location: @output_path}
     ]
 
     links = [link(:source) |> to(:parser) |> to(:decoder) |> to(:sink)]

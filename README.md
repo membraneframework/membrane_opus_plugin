@@ -50,7 +50,7 @@ defmodule Membrane.ReleaseTest.Pipeline do
   @impl true
   def handle_init(_) do
     children = [
-      source: %Membrane.Element.File.Source{
+      source: %Membrane.File.Source{
         location: "/tmp/input.raw"
       },
       encoder: %Membrane.Opus.Encoder{
@@ -62,7 +62,7 @@ defmodule Membrane.ReleaseTest.Pipeline do
         }
       },
       serializer: Membrane.Opus.Serializer,
-      sink: %Membrane.Element.File.Sink{
+      sink: %Membrane.File.Sink{
         location: "/tmp/output.opus"
       }
     ]
@@ -88,12 +88,12 @@ defmodule Membrane.ReleaseTest.Pipeline2 do
   @impl true
   def handle_init(_) do
     children = [
-      source: %Membrane.Element.File.Source{
+      source: %Membrane.File.Source{
         location: "/tmp/input.opus"
       },
       parser: Membrane.Opus.Parser,
       opus: Membrane.Opus.Decoder,
-      sink: %Membrane.Element.File.Sink{
+      sink: %Membrane.File.Sink{
         location: "/tmp/output.raw"
       }
     ]
