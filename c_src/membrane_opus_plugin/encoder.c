@@ -48,7 +48,6 @@ UNIFEX_TERM encode_packet(UnifexEnv *env, State *state,
   );
 
   if (encoded_size_or_error < 0) {
-    MEMBRANE_WARN(env, "Opus: Encode error: %x\n", encoded_size_or_error);
     return encode_packet_result_error(env, get_error(encoded_size_or_error));
   }
 
