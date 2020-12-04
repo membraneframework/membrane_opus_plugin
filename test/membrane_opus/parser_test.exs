@@ -1,11 +1,12 @@
 defmodule Membrane.Opus.Parser.ParserTest do
   use ExUnit.Case, async: true
 
+  import Membrane.Time
+  import Membrane.Testing.Assertions
+
   alias Membrane.Opus.Parser
   alias Membrane.{Opus, Buffer}
   alias Membrane.Testing.{Source, Sink, Pipeline}
-
-  import Membrane.Testing.Assertions
 
   test "non-self-delimiting" do
     inputs_and_expectations = [
@@ -17,8 +18,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: false
         },
         %{
-          frame_size: 10,
-          frame_lengths: [0]
+          duration: 0
         }
       },
       {
@@ -29,8 +29,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: false
         },
         %{
-          frame_size: 20,
-          frame_lengths: [2, 2]
+          duration: 40 |> milliseconds()
         }
       },
       {
@@ -41,8 +40,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: false
         },
         %{
-          frame_size: 2.5,
-          frame_lengths: [1, 3]
+          duration: 5 |> milliseconds()
         }
       },
       {
@@ -53,8 +51,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: false
         },
         %{
-          frame_size: 2.5,
-          frame_lengths: [1, 1, 1]
+          duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
         }
       },
       {
@@ -65,8 +62,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: false
         },
         %{
-          frame_size: 2.5,
-          frame_lengths: [1, 1, 1]
+          duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
         }
       },
       {
@@ -77,8 +73,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: false
         },
         %{
-          frame_size: 2.5,
-          frame_lengths: [1, 2, 1]
+          duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
         }
       },
       {
@@ -98,8 +93,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: false
         },
         %{
-          frame_size: 2.5,
-          frame_lengths: [253, 2, 3]
+          duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
         }
       }
     ]
@@ -142,8 +136,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: true
         },
         %{
-          frame_size: 10,
-          frame_lengths: [0]
+          duration: 0
         }
       },
       {
@@ -155,8 +148,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: true
         },
         %{
-          frame_size: 20,
-          frame_lengths: [2, 2]
+          duration: 40 |> milliseconds()
         }
       },
       {
@@ -168,8 +160,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: true
         },
         %{
-          frame_size: 2.5,
-          frame_lengths: [1, 3]
+          duration: 5 |> milliseconds()
         }
       },
       {
@@ -181,8 +172,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: true
         },
         %{
-          frame_size: 2.5,
-          frame_lengths: [1, 1, 1]
+          duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
         }
       },
       {
@@ -194,8 +184,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: true
         },
         %{
-          frame_size: 2.5,
-          frame_lengths: [1, 1, 1]
+          duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
         }
       },
       {
@@ -207,41 +196,39 @@ defmodule Membrane.Opus.Parser.ParserTest do
           self_delimiting?: true
         },
         %{
-          frame_size: 2.5,
-          frame_lengths: [1, 2, 1]
+          duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
+        }
+      },
+      {
+        # code 3 vbr - no padding, long length
+        <<199, 131, 253, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+          0, 3, 3, 3>>,
+        <<199, 131, 253, 0, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          0, 0, 3, 3, 3>>,
+        %Opus{
+          channels: 2,
+          self_delimiting?: true
+        },
+        %{
+          duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
         }
       }
-      # {
-      #   # code 3 vbr - no padding, long length
-      #   <<199, 131, 253, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-      #     0, 3, 3, 3>>,
-      #   <<199, 131, 253, 0, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      #     0, 0, 3, 3, 3>>,
-      #   %Opus{
-      #     channels: 2,
-      #     self_delimiting?: true
-      #   },
-      #   %{
-      #     frame_size: 2.5,
-      #     frame_lengths: [253, 2, 3]
-      #   }
-      # }
     ]
 
     inputs =

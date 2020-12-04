@@ -29,6 +29,7 @@ defmodule Membrane.Opus.Decoder do
   def_input_pad :input,
     demand_unit: :buffers,
     caps: [
+      {Opus, self_delimiting?: false},
       {RemoteStream, type: :packetized, content_format: one_of([Opus, nil])}
     ]
 

@@ -4,19 +4,15 @@ defmodule Membrane.Opus.Parser do
 
   Adds the following metadata:
 
-  frame_size :: 2.5 | 5 | 10 | 20 | 40 | 60
-    Number of milliseconds per frame encoded in this packet.
-
-  frame_lengths :: [non_neg_integer()]
-    Ordered list of bytes used to encode each frame in this packet.
-    The length of this list is also the number of frames encoded in this packet.
-    However, a value of 0 indicates a dropped frame and should be accounted
-    for when using this field.
+  duration :: non_neg_integer()
+    Number of nanoseconds encoded in this packet
   """
 
   use Membrane.Filter
 
-  alias Membrane.{Buffer, Opus}
+  import Membrane.Time
+
+  alias Membrane.{Buffer, Opus, RemoteStream}
 
   def_options self_delimit?: [
                 spec: boolean(),
@@ -28,7 +24,13 @@ defmodule Membrane.Opus.Parser do
                 """
               ]
 
-  def_input_pad :input, demand_unit: :buffers, caps: :any
+  def_input_pad :input,
+    demand_unit: :buffers,
+    caps: [
+      {Opus, self_delimiting?: false},
+      {RemoteStream, type: :packetized, content_format: one_of([Opus, nil])}
+    ]
+
   def_output_pad :output, caps: Opus
 
   @impl true
@@ -43,10 +45,12 @@ defmodule Membrane.Opus.Parser do
 
   @impl true
   def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
-    with {:ok, {configuration_number, stereo_flag, frame_packing}} <- parse_toc_byte(data),
-         {:ok, {_mode, _bandwidth, frame_size}} <- parse_configuration(configuration_number),
+    with {:ok, {configuration_number, stereo_flag, frame_packing, data_without_toc}} <-
+           parse_toc_byte(data),
+         {:ok, {_mode, _bandwidth, frame_duration}} <- parse_configuration(configuration_number),
          {:ok, channels} <- parse_channels(stereo_flag),
-         {:ok, {frame_lengths, header_length}} <- parse_frame_lengths(frame_packing, data),
+         {:ok, {frame_lengths, header_length}} <-
+           parse_frame_lengths(frame_packing, data_without_toc),
          {:ok, data} <- self_delimit(data, frame_lengths, header_length, state) do
       caps = %Opus{
         channels: channels,
@@ -56,13 +60,24 @@ defmodule Membrane.Opus.Parser do
       buffer = %Buffer{
         payload: data,
         metadata: %{
-          frame_lengths: frame_lengths,
-          frame_size: frame_size
+          duration: elapsed_time(frame_lengths, frame_duration)
         }
       }
 
       {{:ok, caps: {:output, caps}, buffer: {:output, buffer}}, state}
     end
+  end
+
+  defp elapsed_time(frame_lengths, frame_duration) do
+    # if a frame has length 0 it indicates a dropped frame and should not be
+    # included in this calc
+    present_frames =
+      frame_lengths
+      |> Enum.count(fn length -> length > 0 end)
+
+    # we need to convert to nanoseconds ourselves because Membrane.Time
+    # can't do conversions with floats and 2.5ms is a possible frame duration
+    (present_frames * frame_duration * 1_000_000) |> trunc() |> nanoseconds()
   end
 
   # handles self-delimiting
@@ -85,10 +100,10 @@ defmodule Membrane.Opus.Parser do
   # parses config number, stereo flag, and frame packing strategy from the TOC
   # byte
   defp parse_toc_byte(data) do
-    <<configuration_number::size(5), stereo_flag::size(1), frame_packing::size(2), _rest::binary>> =
+    <<configuration_number::size(5), stereo_flag::size(1), frame_packing::size(2), rest::binary>> =
       data
 
-    {:ok, {configuration_number, stereo_flag, frame_packing}}
+    {:ok, {configuration_number, stereo_flag, frame_packing, rest}}
   end
 
   # parses configuration values from TOC configuration number
@@ -132,74 +147,80 @@ defmodule Membrane.Opus.Parser do
   # determines number of channels
   defp parse_channels(stereo_flag) when stereo_flag in 0..1, do: {:ok, stereo_flag + 1}
 
-  # returns ordered list of frame lengths
-  defp parse_frame_lengths(frame_packing, data) do
-    # note, when calculating frame lengths we need to subtract the TOC byte
+  # returns ordered list of frame lengths and header length
+  @spec parse_frame_lengths(non_neg_integer, binary) :: {:ok, {[non_neg_integer], pos_integer}}
+  defp parse_frame_lengths(frame_packing, data_without_toc) do
     case frame_packing do
       # there is one frame in this packet
       0 ->
-        {:ok, {[byte_size(data) - 1], 1}}
+        {:ok, {[byte_size(data_without_toc)], 1}}
 
       # there are two equal-length frames in this packet
       1 ->
-        frame_length = div(byte_size(data) - 1, 2)
+        frame_length = div(byte_size(data_without_toc), 2)
         {:ok, {[frame_length, frame_length], 1}}
 
       # there are two non-equal-length frames in this packet
       2 ->
-        {first_len, bytes_used} = calculate_frame_length(data, 1)
-        {:ok, {[first_len, byte_size(data) - 1 - bytes_used - first_len], 1 + bytes_used}}
+        {first_len, bytes_used} = calculate_frame_length(data_without_toc, 0)
+        {:ok, {[first_len, byte_size(data_without_toc) - bytes_used - first_len], 1 + bytes_used}}
 
       # there are two or more frames of arbitrary size
       3 ->
-        {:ok, code_three_lengths(data)}
+        {:ok, code_three_lengths(data_without_toc)}
     end
   end
 
   # calculates frame lengths for Code 3 packets
-  defp code_three_lengths(data) do
-    <<_toc::binary-size(1), vbr_flag::size(1), padding_flag::size(1), frame_count::size(6),
-      _rest::binary>> = data
+  defp code_three_lengths(data_without_toc) do
+    <<vbr_flag::size(1), padding_flag::size(1), frame_count::size(6), rest::binary>> =
+      data_without_toc
 
     if vbr_flag == 1 do
-      code_three_vbr_lengths(data, padding_flag, frame_count)
+      code_three_vbr_lengths(rest, padding_flag, frame_count)
     else
-      code_three_cbr_lengths(data, padding_flag, frame_count)
+      code_three_cbr_lengths(rest, padding_flag, frame_count)
     end
   end
 
-  defp code_three_vbr_lengths(data, padding_flag, frame_count) do
-    {padding_length, padding_encoding_length} = calculate_padding_info(padding_flag, data)
-    # 1 for the TOC byte and another for the code 3 frame count byte
-    byte_offset = 2 + padding_encoding_length
+  defp code_three_vbr_lengths(data_without_headers, padding_flag, frame_count) do
+    {padding_length, padding_encoding_length} =
+      calculate_padding_info(padding_flag, data_without_headers)
+
+    byte_offset = padding_encoding_length
 
     # (frame_count - 1) frames have individual frame lengths that we need to
     # calculate, but the last frame's size is implied
     {lengths, byte_offset} =
       0..(frame_count - 2)
-      |> Enum.reduce({[], byte_offset}, fn _i, {lengths, byte_offset} ->
-        {length, length_encoding_size} = calculate_frame_length(data, byte_offset)
-        {[length | lengths], byte_offset + length_encoding_size}
+      |> Enum.map_reduce(byte_offset, fn _i, byte_offset ->
+        {length, length_encoding_size} = calculate_frame_length(data_without_headers, byte_offset)
+        {length, byte_offset + length_encoding_size}
       end)
 
-    last_frame_length = byte_size(data) - byte_offset - Enum.sum(lengths) - padding_length
+    last_frame_length =
+      byte_size(data_without_headers) - byte_offset - Enum.sum(lengths) - padding_length
 
     frame_lengths =
       [last_frame_length | lengths]
       |> Enum.reverse()
 
-    {frame_lengths, byte_offset}
+    # adding 2 for TOC and code three header
+    {frame_lengths, 2 + byte_offset}
   end
 
-  defp code_three_cbr_lengths(data, padding_flag, frame_count) do
-    {padding_length, padding_encoding_length} = calculate_padding_info(padding_flag, data)
-    # 1 for the TOC byte and another for the code 3 frame count byte
-    frame_size = div(byte_size(data) - 2 - padding_encoding_length - padding_length, frame_count)
+  defp code_three_cbr_lengths(data_without_headers, padding_flag, frame_count) do
+    {padding_length, padding_encoding_length} =
+      calculate_padding_info(padding_flag, data_without_headers)
+
+    frame_duration =
+      div(byte_size(data_without_headers) - padding_encoding_length - padding_length, frame_count)
 
     frame_lengths =
       0..(frame_count - 1)
-      |> Enum.map(fn _i -> frame_size end)
+      |> Enum.map(fn _i -> frame_duration end)
 
+    # adding 2 for TOC and code three header
     {frame_lengths, 2 + padding_encoding_length}
   end
 
@@ -234,13 +255,10 @@ defmodule Membrane.Opus.Parser do
   defp calculate_padding_info(padding_flag, _data) when padding_flag == 0, do: {0, 0}
 
   defp calculate_padding_info(padding_flag, data) when padding_flag == 1 do
-    # TOC byte and code 3 frame count byte
-    initial_offset = 2
-    {padding_length, offset} = do_calculate_padding_info(data, initial_offset)
-    {padding_length, offset - initial_offset}
+    do_calculate_padding_info(data)
   end
 
-  defp do_calculate_padding_info(data, byte_offset, current_padding \\ 0) do
+  defp do_calculate_padding_info(data, byte_offset \\ 0, current_padding \\ 0) do
     <<_head::binary-size(byte_offset), padding::size(8), _rest::binary>> = data
 
     if padding == 255 do
