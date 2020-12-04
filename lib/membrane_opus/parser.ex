@@ -45,27 +45,25 @@ defmodule Membrane.Opus.Parser do
 
   @impl true
   def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
-    with {:ok, {configuration_number, stereo_flag, frame_packing, data_without_toc}} <-
-           parse_toc_byte(data),
-         {:ok, {_mode, _bandwidth, frame_duration}} <- parse_configuration(configuration_number),
-         {:ok, channels} <- parse_channels(stereo_flag),
-         {:ok, {frame_lengths, header_length}} <-
-           parse_frame_lengths(frame_packing, data_without_toc),
-         {:ok, data} <- self_delimit(data, frame_lengths, header_length, state) do
-      caps = %Opus{
-        channels: channels,
-        self_delimiting?: state.self_delimit?
-      }
+    {configuration_number, stereo_flag, frame_packing, data_without_toc} = parse_toc_byte(data)
+    {_mode, _bandwidth, frame_duration} = parse_configuration(configuration_number)
+    channels = parse_channels(stereo_flag)
+    {frame_lengths, header_length} = parse_frame_lengths(frame_packing, data_without_toc)
+    parsed_data = self_delimit(data, frame_lengths, header_length, state)
 
-      buffer = %Buffer{
-        payload: data,
-        metadata: %{
-          duration: elapsed_time(frame_lengths, frame_duration)
-        }
-      }
+    caps = %Opus{
+      channels: channels,
+      self_delimiting?: state.self_delimit?
+    }
 
-      {{:ok, caps: {:output, caps}, buffer: {:output, buffer}}, state}
-    end
+    buffer = %Buffer{
+      payload: parsed_data,
+      metadata: %{
+        duration: elapsed_time(frame_lengths, frame_duration)
+      }
+    }
+
+    {{:ok, caps: {:output, caps}, buffer: {:output, buffer}}, state}
   end
 
   defp elapsed_time(frame_lengths, frame_duration) do
@@ -84,18 +82,15 @@ defmodule Membrane.Opus.Parser do
   defp self_delimit(data, frame_lengths, header_length, state) when state.self_delimit? do
     <<head::binary-size(header_length), body::binary>> = data
 
-    output =
-      [
-        head,
-        frame_lengths |> List.last() |> encode_frame_length(),
-        body
-      ]
-      |> :binary.list_to_bin()
-
-    {:ok, output}
+    [
+      head,
+      frame_lengths |> List.last() |> encode_frame_length(),
+      body
+    ]
+    |> :binary.list_to_bin()
   end
 
-  defp self_delimit(data, _frame_lengths, _header_length, _state), do: {:ok, data}
+  defp self_delimit(data, _frame_lengths, _header_length, _state), do: data
 
   # parses config number, stereo flag, and frame packing strategy from the TOC
   # byte
@@ -103,71 +98,71 @@ defmodule Membrane.Opus.Parser do
     <<configuration_number::size(5), stereo_flag::size(1), frame_packing::size(2), rest::binary>> =
       data
 
-    {:ok, {configuration_number, stereo_flag, frame_packing, rest}}
+    {configuration_number, stereo_flag, frame_packing, rest}
   end
 
   # parses configuration values from TOC configuration number
   defp parse_configuration(configuration_number) do
     case configuration_number do
-      0 -> {:ok, {:silk, :narrow, 10}}
-      1 -> {:ok, {:silk, :narrow, 20}}
-      2 -> {:ok, {:silk, :narrow, 40}}
-      3 -> {:ok, {:silk, :narrow, 60}}
-      4 -> {:ok, {:silk, :medium, 10}}
-      5 -> {:ok, {:silk, :medium, 20}}
-      6 -> {:ok, {:silk, :medium, 40}}
-      7 -> {:ok, {:silk, :medium, 60}}
-      8 -> {:ok, {:silk, :wide, 10}}
-      9 -> {:ok, {:silk, :wide, 20}}
-      10 -> {:ok, {:silk, :wide, 40}}
-      11 -> {:ok, {:silk, :wide, 60}}
-      12 -> {:ok, {:hybrid, :super_wide, 10}}
-      13 -> {:ok, {:hybrid, :super_wide, 20}}
-      14 -> {:ok, {:hybrid, :full, 10}}
-      15 -> {:ok, {:hybrid, :full, 20}}
-      16 -> {:ok, {:celt, :narrow, 2.5}}
-      17 -> {:ok, {:celt, :narrow, 5}}
-      18 -> {:ok, {:celt, :narrow, 10}}
-      19 -> {:ok, {:celt, :narrow, 20}}
-      20 -> {:ok, {:celt, :wide, 2.5}}
-      21 -> {:ok, {:celt, :wide, 5}}
-      22 -> {:ok, {:celt, :wide, 10}}
-      23 -> {:ok, {:celt, :wide, 20}}
-      24 -> {:ok, {:celt, :super_wide, 2.5}}
-      25 -> {:ok, {:celt, :super_wide, 5}}
-      26 -> {:ok, {:celt, :super_wide, 10}}
-      27 -> {:ok, {:celt, :super_wide, 20}}
-      28 -> {:ok, {:celt, :full, 2.5}}
-      29 -> {:ok, {:celt, :full, 5}}
-      30 -> {:ok, {:celt, :full, 10}}
-      31 -> {:ok, {:celt, :full, 20}}
+      0 -> {:silk, :narrow, 10}
+      1 -> {:silk, :narrow, 20}
+      2 -> {:silk, :narrow, 40}
+      3 -> {:silk, :narrow, 60}
+      4 -> {:silk, :medium, 10}
+      5 -> {:silk, :medium, 20}
+      6 -> {:silk, :medium, 40}
+      7 -> {:silk, :medium, 60}
+      8 -> {:silk, :wide, 10}
+      9 -> {:silk, :wide, 20}
+      10 -> {:silk, :wide, 40}
+      11 -> {:silk, :wide, 60}
+      12 -> {:hybrid, :super_wide, 10}
+      13 -> {:hybrid, :super_wide, 20}
+      14 -> {:hybrid, :full, 10}
+      15 -> {:hybrid, :full, 20}
+      16 -> {:celt, :narrow, 2.5}
+      17 -> {:celt, :narrow, 5}
+      18 -> {:celt, :narrow, 10}
+      19 -> {:celt, :narrow, 20}
+      20 -> {:celt, :wide, 2.5}
+      21 -> {:celt, :wide, 5}
+      22 -> {:celt, :wide, 10}
+      23 -> {:celt, :wide, 20}
+      24 -> {:celt, :super_wide, 2.5}
+      25 -> {:celt, :super_wide, 5}
+      26 -> {:celt, :super_wide, 10}
+      27 -> {:celt, :super_wide, 20}
+      28 -> {:celt, :full, 2.5}
+      29 -> {:celt, :full, 5}
+      30 -> {:celt, :full, 10}
+      31 -> {:celt, :full, 20}
     end
   end
 
   # determines number of channels
-  defp parse_channels(stereo_flag) when stereo_flag in 0..1, do: {:ok, stereo_flag + 1}
+  defp parse_channels(stereo_flag) when stereo_flag in 0..1, do: stereo_flag + 1
 
   # returns ordered list of frame lengths and header length
-  @spec parse_frame_lengths(non_neg_integer, binary) :: {:ok, {[non_neg_integer], pos_integer}}
+  @spec parse_frame_lengths(non_neg_integer, binary) :: {[non_neg_integer], pos_integer}
   defp parse_frame_lengths(frame_packing, data_without_toc) do
     case frame_packing do
       # there is one frame in this packet
       0 ->
-        {:ok, {[byte_size(data_without_toc)], 1}}
+        {[byte_size(data_without_toc)], 1}
 
       # there are two equal-length frames in this packet
       1 ->
         frame_length = div(byte_size(data_without_toc), 2)
-        {:ok, {[frame_length, frame_length], 1}}
+        {[frame_length, frame_length], 1}
 
       # there are two non-equal-length frames in this packet
       2 ->
         {first_len, bytes_used} = calculate_frame_length(data_without_toc, 0)
-        {:ok, {[first_len, byte_size(data_without_toc) - bytes_used - first_len], 1 + bytes_used}}
+        {[first_len, byte_size(data_without_toc) - bytes_used - first_len], 1 + bytes_used}
 
       # there are two or more frames of arbitrary size
       3 ->
-        {:ok, code_three_lengths(data_without_toc)}
+        code_three_lengths(data_without_toc)
     end
   end
 
@@ -258,11 +253,11 @@ defmodule Membrane.Opus.Parser do
     do_calculate_padding_info(data)
   end
 
-  defp do_calculate_padding_info(data, byte_offset \\ 0, current_padding \\ 0) do
-    <<_head::binary-size(byte_offset), padding::size(8), _rest::binary>> = data
+  defp do_calculate_padding_info(data, current_padding \\ 0, byte_offset \\ 0) do
+    <<padding::size(8), rest::binary>> = data
 
     if padding == 255 do
-      do_calculate_padding_info(data, byte_offset + 1, current_padding + 254)
+      do_calculate_padding_info(rest, current_padding + 254, byte_offset + 1)
     else
       {current_padding + padding, byte_offset + 1}
     end

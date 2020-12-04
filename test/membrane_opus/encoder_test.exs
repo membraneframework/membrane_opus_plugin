@@ -15,7 +15,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     on_exit(fn -> File.rm(@output_path) end)
 
     elements = [
-      source: %Element.File.Source{
+      source: %Membrane.File.Source{
         location: @input_path
       },
       encoder: %Encoder{
@@ -26,7 +26,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
           sample_rate: 48_000
         }
       },
-      sink: %Element.File.Sink{
+      sink: %Membrane.File.Sink{
         location: @output_path
       }
     ]
