@@ -14,20 +14,37 @@ defmodule Membrane.Opus.Parser do
 
   alias Membrane.{Buffer, Opus, RemoteStream}
 
-  def_options self_delimit?: [
+  def_options delimitation: [
+                spec: :delimit | :undelimit | :keep,
+                default: :keep,
+                description: """
+                If input is delimitted (as indicated by the `self_delimiting?`
+                field in %Opus) and `:undelimit` is selected, will remove delimitting.
+
+                If input is not delimitted and `:delimit` is selected, will add delimitting.
+
+                If `:keep` is selected, will not change delimiting.
+
+                Otherwise will raise.
+
+                See https://tools.ietf.org/html/rfc6716#appendix-B for details
+                on the self-delimitting Opus format.
+                """
+              ],
+              input_delimitted?: [
                 spec: boolean(),
                 default: false,
                 description: """
-                If true, will mutate the output to self-delimit the Opus input.
-
-                See https://tools.ietf.org/html/rfc6716#appendix-B for details.
+                If you know that the input is self-delimitted but you're reading from
+                some element that isn't sending the correct structure, you can set this
+                to true to force the Parser to assume the input is self-delimitted.
                 """
               ]
 
   def_input_pad :input,
     demand_unit: :buffers,
     caps: [
-      {Opus, self_delimiting?: false},
+      Opus,
       {RemoteStream, type: :packetized, content_format: one_of([Opus, nil])}
     ]
 
@@ -44,16 +61,23 @@ defmodule Membrane.Opus.Parser do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
+  def handle_process(:input, %Buffer{payload: data}, ctx, state) do
+    input_delimitation =
+      Map.get(ctx.pads.input, :caps) || %{} |> Map.get(:self_delimiting?, state.input_delimitted?)
+
     {configuration_number, stereo_flag, frame_packing, data_without_toc} = parse_toc_byte(data)
     {_mode, _bandwidth, frame_duration} = parse_configuration(configuration_number)
     channels = parse_channels(stereo_flag)
-    {frame_lengths, header_length} = parse_frame_lengths(frame_packing, data_without_toc)
-    parsed_data = self_delimit(data, frame_lengths, header_length, state)
+
+    {frame_lengths, header_size} =
+      parse_frame_lengths(frame_packing, data_without_toc, input_delimitation)
+
+    {parsed_data, self_delimiting?} =
+      parse_data(data, frame_lengths, header_size, state, input_delimitation)
 
     caps = %Opus{
       channels: channels,
-      self_delimiting?: state.self_delimit?
+      self_delimiting?: self_delimiting?
     }
 
     buffer = %Buffer{
@@ -78,9 +102,29 @@ defmodule Membrane.Opus.Parser do
     (present_frames * frame_duration * 1_000_000) |> trunc() |> nanoseconds()
   end
 
+  defp parse_data(data, frame_lengths, header_size, state, self_delimiting?) do
+    cond do
+      state.delimitation == :keep ->
+        {data, self_delimiting?}
+
+      self_delimiting? && state.delimitation == :undelimit ->
+        {undelimit(data, frame_lengths, header_size), false}
+
+      !self_delimiting? && state.delimitation == :delimit ->
+        {delimit(data, frame_lengths, header_size), true}
+
+      true ->
+        raise """
+        Invalid delimitation option for #{__MODULE__}:
+        Input caps delimitiation: #{self_delimiting?}
+        Requested delimitation: #{state.delimitation}
+        """
+    end
+  end
+
   # handles self-delimiting
-  defp self_delimit(data, frame_lengths, header_length, state) when state.self_delimit? do
-    <<head::binary-size(header_length), body::binary>> = data
+  defp delimit(data, frame_lengths, header_size) do
+    <<head::binary-size(header_size), body::binary>> = data
 
     [
       head,
@@ -90,7 +134,20 @@ defmodule Membrane.Opus.Parser do
     |> :binary.list_to_bin()
   end
 
-  defp self_delimit(data, _frame_lengths, _header_length, _state), do: data
+  defp undelimit(data, frame_lengths, header_size) do
+    last_length = frame_lengths |> List.last() |> encode_frame_length()
+    last_length_size = byte_size(last_length)
+    parsed_header_size = header_size - last_length_size
+
+    <<parsed_head::binary-size(parsed_header_size), _last_length::binary-size(last_length_size),
+      body::binary>> = data
+
+    [
+      parsed_head,
+      body
+    ]
+    |> :binary.list_to_bin()
+  end
 
   # parses config number, stereo flag, and frame packing strategy from the TOC
   # byte
@@ -143,80 +200,133 @@ defmodule Membrane.Opus.Parser do
   defp parse_channels(stereo_flag) when stereo_flag in 0..1, do: stereo_flag + 1
 
   # returns ordered list of frame lengths and header length
-  @spec parse_frame_lengths(non_neg_integer, binary) :: {[non_neg_integer], pos_integer}
-  defp parse_frame_lengths(frame_packing, data_without_toc) do
+  @spec parse_frame_lengths(non_neg_integer, binary, boolean) :: {[non_neg_integer], pos_integer}
+  defp parse_frame_lengths(frame_packing, data_without_toc, self_delimiting?) do
     case frame_packing do
       # there is one frame in this packet
       0 ->
-        {[byte_size(data_without_toc)], 1}
+        code_zero_lengths(data_without_toc, self_delimiting?)
 
       # there are two equal-length frames in this packet
       1 ->
-        frame_length = div(byte_size(data_without_toc), 2)
-        {[frame_length, frame_length], 1}
+        code_one_lengths(data_without_toc, self_delimiting?)
 
       # there are two non-equal-length frames in this packet
       2 ->
-        {first_len, bytes_used} = calculate_frame_length(data_without_toc, 0)
-        {[first_len, byte_size(data_without_toc) - bytes_used - first_len], 1 + bytes_used}
+        code_two_lengths(data_without_toc, self_delimiting?)
 
       # there are two or more frames of arbitrary size
       3 ->
-        code_three_lengths(data_without_toc)
+        code_three_lengths(data_without_toc, self_delimiting?)
+    end
+  end
+
+  defp code_zero_lengths(data_without_toc, self_delimiting?) do
+    if self_delimiting? do
+      {length, length_bytes} = calculate_frame_length(data_without_toc, 0)
+      {[length], 1 + length_bytes}
+    else
+      {[byte_size(data_without_toc)], 1}
+    end
+  end
+
+  defp code_one_lengths(data_without_toc, self_delimiting?) do
+    if self_delimiting? do
+      {length, length_bytes} = calculate_frame_length(data_without_toc, 0)
+      {[length, length], 1 + length_bytes}
+    else
+      length = div(byte_size(data_without_toc), 2)
+      {[length, length], 1}
+    end
+  end
+
+  defp code_two_lengths(data_without_toc, self_delimiting?) do
+    {first_len, first_bytes_used} = calculate_frame_length(data_without_toc, 0)
+
+    if self_delimiting? do
+      {second_len, second_bytes_used} = calculate_frame_length(data_without_toc, first_bytes_used)
+      {[first_len, second_len], 1 + first_bytes_used + second_bytes_used}
+    else
+      {[first_len, byte_size(data_without_toc) - first_bytes_used - first_len],
+       1 + first_bytes_used}
     end
   end
 
   # calculates frame lengths for Code 3 packets
-  defp code_three_lengths(data_without_toc) do
+  defp code_three_lengths(data_without_toc, self_delimiting?) do
     <<vbr_flag::size(1), padding_flag::size(1), frame_count::size(6), rest::binary>> =
       data_without_toc
 
     if vbr_flag == 1 do
-      code_three_vbr_lengths(rest, padding_flag, frame_count)
+      code_three_vbr_lengths(rest, padding_flag, frame_count, self_delimiting?)
     else
-      code_three_cbr_lengths(rest, padding_flag, frame_count)
+      code_three_cbr_lengths(rest, padding_flag, frame_count, self_delimiting?)
     end
   end
 
-  defp code_three_vbr_lengths(data_without_headers, padding_flag, frame_count) do
+  defp code_three_vbr_lengths(data_without_headers, padding_flag, frame_count, self_delimiting?) do
     {padding_length, padding_encoding_length} =
       calculate_padding_info(padding_flag, data_without_headers)
 
     byte_offset = padding_encoding_length
 
-    # (frame_count - 1) frames have individual frame lengths that we need to
-    # calculate, but the last frame's size is implied
+    frames_with_lengths =
+      if self_delimiting? do
+        frame_count
+      else
+        # (frame_count - 1) frames have individual frame lengths that we need to
+        # calculate, but the last frame's size is implied
+        frame_count - 1
+      end
+
     {lengths, byte_offset} =
-      0..(frame_count - 2)
+      0..(frames_with_lengths - 1)
       |> Enum.map_reduce(byte_offset, fn _i, byte_offset ->
         {length, length_encoding_size} = calculate_frame_length(data_without_headers, byte_offset)
         {length, byte_offset + length_encoding_size}
       end)
 
-    last_frame_length =
-      byte_size(data_without_headers) - byte_offset - Enum.sum(lengths) - padding_length
-
     frame_lengths =
-      [last_frame_length | lengths]
-      |> Enum.reverse()
+      if self_delimiting? do
+        lengths
+      else
+        last_frame_length =
+          byte_size(data_without_headers) - byte_offset - Enum.sum(lengths) - padding_length
+
+        lengths ++ [last_frame_length]
+      end
 
     # adding 2 for TOC and code three header
     {frame_lengths, 2 + byte_offset}
   end
 
-  defp code_three_cbr_lengths(data_without_headers, padding_flag, frame_count) do
+  defp code_three_cbr_lengths(data_without_headers, padding_flag, frame_count, self_delimiting?) do
     {padding_length, padding_encoding_length} =
       calculate_padding_info(padding_flag, data_without_headers)
 
-    frame_duration =
-      div(byte_size(data_without_headers) - padding_encoding_length - padding_length, frame_count)
+    {frame_duration, header_length} =
+      if self_delimiting? do
+        {frame_duration, bytes_used} =
+          calculate_frame_length(data_without_headers, padding_encoding_length)
+
+        # adding 2 for TOC and code three header
+        {frame_duration, 2 + padding_encoding_length + bytes_used}
+      else
+        frame_duration =
+          div(
+            byte_size(data_without_headers) - padding_encoding_length - padding_length,
+            frame_count
+          )
+
+        # adding 2 for TOC and code three header
+        {frame_duration, 2 + padding_encoding_length}
+      end
 
     frame_lengths =
       0..(frame_count - 1)
       |> Enum.map(fn _i -> frame_duration end)
 
-    # adding 2 for TOC and code three header
-    {frame_lengths, 2 + padding_encoding_length}
+    {frame_lengths, header_length}
   end
 
   # calculates frame length of the frame starting at byte_offset, specifically
