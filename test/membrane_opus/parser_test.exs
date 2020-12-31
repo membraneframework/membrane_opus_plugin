@@ -35,21 +35,21 @@ defmodule Membrane.Opus.Parser.ParserTest do
       normal: <<199, 3, 0, 0, 0>>,
       delimitted: <<199, 3, 1, 0, 0, 0>>,
       channels: 2,
-      duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
+      duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds()
     },
     %{
       desc: "code 3 cbr, padding",
       normal: <<199, 67, 2, 0, 0, 0, 0, 0>>,
       delimitted: <<199, 67, 2, 1, 0, 0, 0, 0, 0>>,
       channels: 2,
-      duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
+      duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds()
     },
     %{
       desc: "code 3 vbr, no padding",
       normal: <<199, 131, 1, 2, 0, 0, 0, 0>>,
       delimitted: <<199, 131, 1, 2, 1, 0, 0, 0, 0>>,
       channels: 2,
-      duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
+      duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds()
     },
     %{
       desc: "code 3 vbr, no padding, long length",
@@ -76,7 +76,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
           0, 0, 3, 3, 3>>,
       channels: 2,
-      duration: (7.5 * 1_000_000) |> trunc() |> nanoseconds()
+      duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds()
     }
   ]
 

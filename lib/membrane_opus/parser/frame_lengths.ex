@@ -2,7 +2,7 @@ defmodule Membrane.Opus.Parser.FrameLengths do
   @moduledoc false
   # Helper for Membrane.Opus.Parser for determining frame lengths
 
-  # opposite of calculate_frame_length: given a length, encode it
+  # given a frame length, return opus binary encoded length
   @spec encode_frame_length(non_neg_integer) :: binary
   def encode_frame_length(length) do
     if length < 252 do
@@ -63,8 +63,8 @@ defmodule Membrane.Opus.Parser.FrameLengths do
       {second_len, second_bytes_used} = calculate_frame_length(data_without_toc, first_bytes_used)
       {[first_len, second_len], 1 + first_bytes_used + second_bytes_used}
     else
-      {[first_len, byte_size(data_without_toc) - first_bytes_used - first_len],
-       1 + first_bytes_used}
+      second_len = byte_size(data_without_toc) - first_bytes_used - first_len
+      {[first_len, second_len], 1 + first_bytes_used}
     end
   end
 
@@ -169,12 +169,13 @@ defmodule Membrane.Opus.Parser.FrameLengths do
 
   # calculates total packet padding length, specifically for code 3 packets,
   # and the number of bytes used to encode the padding length
-  @spec calculate_padding_info(0, any) :: {0, 0}
-  defp calculate_padding_info(padding_flag, _data) when padding_flag == 0, do: {0, 0}
-
-  @spec calculate_padding_info(1, binary) :: {non_neg_integer, non_neg_integer}
-  defp calculate_padding_info(padding_flag, data) when padding_flag == 1 do
-    do_calculate_padding_info(data)
+  @spec calculate_padding_info(0..1, binary) :: {non_neg_integer, non_neg_integer}
+  defp calculate_padding_info(padding_flag, data) do
+    if padding_flag == 0 do
+      {0, 0}
+    else
+      do_calculate_padding_info(data)
+    end
   end
 
   @spec do_calculate_padding_info(binary, non_neg_integer, non_neg_integer) ::
