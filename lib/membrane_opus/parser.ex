@@ -13,7 +13,6 @@ defmodule Membrane.Opus.Parser do
   alias __MODULE__.{Delimitation, FrameLengths}
   alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Opus.Util
-  alias Membrane.Core.Element.State
 
   def_options delimitation: [
                 spec: Delimitation.delimitation_t(),
@@ -80,7 +79,8 @@ defmodule Membrane.Opus.Parser do
     {delimitation_handler, self_delimiting?} =
       Delimitation.get_handler(state.delimitation, state.input_delimited?)
 
-    {buffer, packets, channels} = maybe_parse(state.buffer <> data, state, delimitation_handler)
+    {buffer, packets, channels} =
+      maybe_parse(state.buffer <> data, state.input_delimited?, delimitation_handler)
 
     packet_actions =
       if length(packets) > 0 do
@@ -115,18 +115,18 @@ defmodule Membrane.Opus.Parser do
 
   @spec maybe_parse(
           data :: binary,
-          state :: State.t(),
-          delimitation_handler :: Delimitation.handler_t(),
+          input_delimited? :: boolean,
+          delimitation_handler :: Delimitation.Handler,
           packets :: [Buffer.t()],
           max_channels :: 0..2
         ) :: {remaining_buffer :: binary, packets :: [Buffer.t()], channels :: 0..2}
-  defp maybe_parse(data, state, delimitation_handler, packets \\ [], max_channels \\ 0) do
+  defp maybe_parse(data, input_delimited?, delimitation_handler, packets \\ [], max_channels \\ 0) do
     {configuration_number, stereo_flag, frame_packing} = Util.parse_toc_byte(data)
     channels = Util.parse_channels(stereo_flag)
     {_mode, _bandwidth, frame_duration} = Util.parse_configuration(configuration_number)
 
     {header_size, frame_lengths, padding_size} =
-      FrameLengths.parse(frame_packing, data, state.input_delimited?)
+      FrameLengths.parse(frame_packing, data, input_delimited?)
 
     expected_packet_size = header_size + Enum.sum(frame_lengths) + padding_size
 
@@ -136,7 +136,7 @@ defmodule Membrane.Opus.Parser do
 
       byte_size(data) == expected_packet_size ->
         packet = %Buffer{
-          payload: delimitation_handler.(data, frame_lengths, header_size),
+          payload: delimitation_handler.handle(data, frame_lengths, header_size),
           metadata: %{
             duration: elapsed_time(frame_lengths, frame_duration)
           }
@@ -156,7 +156,7 @@ defmodule Membrane.Opus.Parser do
 
         maybe_parse(
           rest,
-          state,
+          input_delimited?,
           delimitation_handler,
           [packet | packets],
           max(max_channels, channels)
