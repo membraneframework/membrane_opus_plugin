@@ -1,19 +1,13 @@
 defmodule Membrane.Opus.Parser.FrameLengths do
   @moduledoc false
-  # Helper for Membrane.Opus.Parser for determining frame lengths
+  # Helper for Membrane.Opus.Parser for working with frame lengths
 
-  @spec encode(length :: non_neg_integer) :: encoded_length :: binary
-  def encode(length) do
-    if length < 252 do
-      <<length::size(8)>>
-    else
-      <<252 + rem(length - 252, 4)::size(8), div(length - 252, 4)::size(8)>>
-    end
-  end
+  @spec parse(frame_packing :: 0..3, data :: binary, self_delimiting? :: boolean) ::
+          {header_size :: pos_integer, frame_lengths :: [non_neg_integer],
+           padding_size :: non_neg_integer}
+  def parse(frame_packing, data, self_delimiting?) do
+    <<_toc::binary-size(1), data_without_toc::binary>> = data
 
-  @spec parse(0..3, binary, boolean) ::
-          {frame_lengths :: [non_neg_integer], header_length :: pos_integer}
-  def parse(frame_packing, data_without_toc, self_delimiting?) do
     case frame_packing do
       # there is one frame in this packet
       0 ->
@@ -33,41 +27,46 @@ defmodule Membrane.Opus.Parser.FrameLengths do
     end
   end
 
-  @spec code_zero_lengths(binary, boolean) :: {[non_neg_integer], pos_integer}
+  @spec code_zero_lengths(data_without_toc :: binary, self_delimiting? :: boolean) ::
+          {header_size :: pos_integer, frame_lengths :: [non_neg_integer], padding_size :: 0}
   defp code_zero_lengths(data_without_toc, self_delimiting?) do
     if self_delimiting? do
       {length, length_bytes} = calculate_frame_length(data_without_toc, 0)
-      {[length], 1 + length_bytes}
+      {1 + length_bytes, [length], 0}
     else
-      {[byte_size(data_without_toc)], 1}
+      {1, [byte_size(data_without_toc)], 0}
     end
   end
 
-  @spec code_one_lengths(binary, boolean) :: {[non_neg_integer], pos_integer}
+  @spec code_one_lengths(data_without_toc :: binary, self_delimiting? :: boolean) ::
+          {header_size :: pos_integer, frame_lengths :: [non_neg_integer], padding_size :: 0}
   defp code_one_lengths(data_without_toc, self_delimiting?) do
     if self_delimiting? do
       {length, length_bytes} = calculate_frame_length(data_without_toc, 0)
-      {[length, length], 1 + length_bytes}
+      {1 + length_bytes, [length, length], 0}
     else
       length = div(byte_size(data_without_toc), 2)
-      {[length, length], 1}
+      {1, [length, length], 0}
     end
   end
 
-  @spec code_two_lengths(binary, boolean) :: {[non_neg_integer], pos_integer}
+  @spec code_two_lengths(data_without_toc :: binary, self_delimiting? :: boolean) ::
+          {header_size :: pos_integer, frame_lengths :: [non_neg_integer], padding_size :: 0}
   defp code_two_lengths(data_without_toc, self_delimiting?) do
     {first_len, first_bytes_used} = calculate_frame_length(data_without_toc, 0)
 
     if self_delimiting? do
       {second_len, second_bytes_used} = calculate_frame_length(data_without_toc, first_bytes_used)
-      {[first_len, second_len], 1 + first_bytes_used + second_bytes_used}
+      {1 + first_bytes_used + second_bytes_used, [first_len, second_len], 0}
     else
       second_len = byte_size(data_without_toc) - first_bytes_used - first_len
-      {[first_len, second_len], 1 + first_bytes_used}
+      {1 + first_bytes_used, [first_len, second_len], 0}
     end
   end
 
-  @spec code_three_lengths(binary, boolean) :: {[non_neg_integer], pos_integer}
+  @spec code_three_lengths(data_without_toc :: binary, self_delimiting? :: boolean) ::
+          {header_size :: pos_integer, frame_lengths :: [non_neg_integer],
+           padding_size :: non_neg_integer}
   defp code_three_lengths(data_without_toc, self_delimiting?) do
     <<vbr_flag::size(1), padding_flag::size(1), frame_count::size(6), rest::binary>> =
       data_without_toc
@@ -79,10 +78,16 @@ defmodule Membrane.Opus.Parser.FrameLengths do
     end
   end
 
-  @spec code_three_vbr_lengths(binary, 0..1, non_neg_integer, boolean) ::
-          {[non_neg_integer], pos_integer}
+  @spec code_three_vbr_lengths(
+          data_without_headers :: binary,
+          padding_flag :: 0..1,
+          frame_count :: non_neg_integer,
+          self_delimiting? :: boolean
+        ) ::
+          {header_size :: pos_integer, frame_lengths :: [non_neg_integer],
+           padding_size :: non_neg_integer}
   defp code_three_vbr_lengths(data_without_headers, padding_flag, frame_count, self_delimiting?) do
-    {padding_length, padding_encoding_length} =
+    {padding_size, padding_encoding_length} =
       calculate_padding_info(padding_flag, data_without_headers)
 
     byte_offset = padding_encoding_length
@@ -108,22 +113,28 @@ defmodule Membrane.Opus.Parser.FrameLengths do
         lengths
       else
         last_frame_length =
-          byte_size(data_without_headers) - byte_offset - Enum.sum(lengths) - padding_length
+          byte_size(data_without_headers) - byte_offset - Enum.sum(lengths) - padding_size
 
         lengths ++ [last_frame_length]
       end
 
     # adding 2 for TOC and code three header
-    {frame_lengths, 2 + byte_offset}
+    {2 + byte_offset, frame_lengths, padding_size}
   end
 
-  @spec code_three_cbr_lengths(binary, 0..1, non_neg_integer, boolean) ::
-          {[non_neg_integer], pos_integer}
+  @spec code_three_cbr_lengths(
+          data_without_headers :: binary,
+          padding_flag :: 0..1,
+          frame_count :: non_neg_integer,
+          self_delimiting? :: boolean
+        ) ::
+          {header_size :: pos_integer, frame_lengths :: [non_neg_integer],
+           padding_size :: non_neg_integer}
   defp code_three_cbr_lengths(data_without_headers, padding_flag, frame_count, self_delimiting?) do
-    {padding_length, padding_encoding_length} =
+    {padding_size, padding_encoding_length} =
       calculate_padding_info(padding_flag, data_without_headers)
 
-    {frame_duration, header_length} =
+    {frame_duration, header_size} =
       if self_delimiting? do
         {frame_duration, bytes_used} =
           calculate_frame_length(data_without_headers, padding_encoding_length)
@@ -133,7 +144,7 @@ defmodule Membrane.Opus.Parser.FrameLengths do
       else
         frame_duration =
           div(
-            byte_size(data_without_headers) - padding_encoding_length - padding_length,
+            byte_size(data_without_headers) - padding_encoding_length - padding_size,
             frame_count
           )
 
@@ -143,7 +154,7 @@ defmodule Membrane.Opus.Parser.FrameLengths do
 
     frame_lengths = 0..(frame_count - 1) |> Enum.map(fn _i -> frame_duration end)
 
-    {frame_lengths, header_length}
+    {header_size, frame_lengths, padding_size}
   end
 
   @spec calculate_frame_length(data :: binary, byte_offset :: non_neg_integer) ::
@@ -163,7 +174,7 @@ defmodule Membrane.Opus.Parser.FrameLengths do
   end
 
   @spec calculate_padding_info(padding_flag :: 0..1, data :: binary) ::
-          {padding_length :: non_neg_integer, padding_length_encoding_size :: non_neg_integer}
+          {padding_size :: non_neg_integer, padding_encoding_size :: non_neg_integer}
   defp calculate_padding_info(padding_flag, data) do
     if padding_flag == 0 do
       {0, 0}
@@ -172,8 +183,12 @@ defmodule Membrane.Opus.Parser.FrameLengths do
     end
   end
 
-  @spec do_calculate_padding_info(binary, non_neg_integer, non_neg_integer) ::
-          {padding_length :: non_neg_integer, padding_length_encoding_size :: non_neg_integer}
+  @spec do_calculate_padding_info(
+          data :: binary,
+          current_padding :: non_neg_integer,
+          byte_offset :: non_neg_integer
+        ) ::
+          {padding_size :: non_neg_integer, padding_encoding_size :: non_neg_integer}
   defp do_calculate_padding_info(data, current_padding \\ 0, byte_offset \\ 0) do
     <<padding::size(8), rest::binary>> = data
 

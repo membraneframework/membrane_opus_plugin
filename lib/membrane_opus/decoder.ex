@@ -64,7 +64,7 @@ defmodule Membrane.Opus.Decoder do
 
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
-    {_config_number, stereo_flag, _frame_packing, _rest} = Util.parse_toc_byte(buffer.payload)
+    {_config_number, stereo_flag, _frame_packing} = Util.parse_toc_byte(buffer.payload)
     channels = Util.parse_channels(stereo_flag)
     {caps, state} = maybe_make_native(channels, state)
 

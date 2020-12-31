@@ -154,7 +154,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
     options = %Pipeline.Options{
       elements: [
         source: %Source{output: inputs},
-        parser: %Parser{input_delimited?: true},
+        parser: %Parser{force_reading_input_as_delimited?: true},
         sink: Sink
       ]
     }
@@ -189,7 +189,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
     options = %Pipeline.Options{
       elements: [
         source: %Source{output: inputs},
-        parser: %Parser{delimitation: :undelimit, input_delimited?: true},
+        parser: %Parser{delimitation: :undelimit, force_reading_input_as_delimited?: true},
         sink: Sink
       ]
     }

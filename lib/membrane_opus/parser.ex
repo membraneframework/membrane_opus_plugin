@@ -10,14 +10,13 @@ defmodule Membrane.Opus.Parser do
 
   use Membrane.Filter
 
+  alias __MODULE__.{Delimitation, FrameLengths}
   alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Opus.Util
-  alias __MODULE__.FrameLengths
-
-  @type delimitation_t :: :delimit | :undelimit | :keep
+  alias Membrane.Core.Element.State
 
   def_options delimitation: [
-                spec: delimitation_t,
+                spec: Delimitation.delimitation_t(),
                 default: :keep,
                 description: """
                 If input is delimited (as indicated by the `self_delimiting?`
@@ -33,13 +32,14 @@ defmodule Membrane.Opus.Parser do
                 on the self-delimiting Opus format.
                 """
               ],
-              input_delimited?: [
+              force_reading_input_as_delimited?: [
                 spec: boolean(),
                 default: false,
                 description: """
                 If you know that the input is self-delimited but you're reading from
                 some element that isn't sending the correct structure, you can set this
-                to true to force the Parser to assume the input is self-delimited.
+                to true to force the Parser to assume the input is self-delimited and
+                ignore upstream caps information on self-delimitation.
                 """
               ]
 
@@ -54,7 +54,15 @@ defmodule Membrane.Opus.Parser do
 
   @impl true
   def handle_init(%__MODULE__{} = options) do
-    {:ok, options |> Map.from_struct()}
+    state =
+      options
+      |> Map.from_struct()
+      |> Map.merge(%{
+        input_delimited?: options.force_reading_input_as_delimited?,
+        buffer: <<>>
+      })
+
+    {:ok, state}
   end
 
   @impl true
@@ -63,75 +71,105 @@ defmodule Membrane.Opus.Parser do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: data}, ctx, state) do
-    input_delimitation =
-      Map.get(ctx.pads.input, :caps) || %{} |> Map.get(:self_delimiting?, state.input_delimited?)
-
-    {configuration_number, stereo_flag, frame_packing, data_without_toc} =
-      Util.parse_toc_byte(data)
-
-    {_mode, _bandwidth, frame_duration} = Util.parse_configuration(configuration_number)
-    channels = Util.parse_channels(stereo_flag)
-
-    {frame_lengths, header_size} =
-      FrameLengths.parse(frame_packing, data_without_toc, input_delimitation)
-
-    {parsed_data, self_delimiting?} =
-      parse_data(data, frame_lengths, header_size, state.delimitation, input_delimitation)
-
-    caps = %Opus{
-      channels: channels,
-      self_delimiting?: self_delimiting?
-    }
-
-    buffer = %Buffer{
-      payload: parsed_data,
-      metadata: %{
-        duration: elapsed_time(frame_lengths, frame_duration)
-      }
-    }
-
-    {{:ok, caps: {:output, caps}, buffer: {:output, buffer}}, state}
+  def handle_caps(:input, caps, _ctx, state) when not state.force_reading_input_as_delimited? do
+    {:ok, %{state | input_delimited?: caps.self_delimiting?}}
   end
 
-  @spec elapsed_time([non_neg_integer], pos_integer) :: Membrane.Time.non_neg_t()
+  @impl true
+  def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
+    {delimitation_handler, self_delimiting?} =
+      Delimitation.get_handler(state.delimitation, state.input_delimited?)
+
+    {buffer, packets, channels} = maybe_parse(state.buffer <> data, state, delimitation_handler)
+
+    packet_actions =
+      if length(packets) > 0 do
+        [
+          caps:
+            {:output,
+             %Opus{
+               channels: channels,
+               self_delimiting?: self_delimiting?
+             }},
+          buffer: {:output, packets}
+        ]
+      else
+        []
+      end
+
+    redemand_actions =
+      if byte_size(buffer) > 0 do
+        [redemand: :output]
+      else
+        []
+      end
+
+    actions = packet_actions ++ redemand_actions
+
+    # it's an invariant of this filter that we send packets and/or need to
+    # redemand
+    true = length(actions) > 0
+
+    {{:ok, actions}, %{state | buffer: buffer}}
+  end
+
+  @spec maybe_parse(
+          data :: binary,
+          state :: State.t(),
+          delimitation_handler :: Delimitation.handler_t(),
+          packets :: [Buffer.t()],
+          max_channels :: 0..2
+        ) :: {remaining_buffer :: binary, packets :: [Buffer.t()], channels :: 0..2}
+  defp maybe_parse(data, state, delimitation_handler, packets \\ [], max_channels \\ 0) do
+    {configuration_number, stereo_flag, frame_packing} = Util.parse_toc_byte(data)
+    channels = Util.parse_channels(stereo_flag)
+    {_mode, _bandwidth, frame_duration} = Util.parse_configuration(configuration_number)
+
+    {header_size, frame_lengths, padding_size} =
+      FrameLengths.parse(frame_packing, data, state.input_delimited?)
+
+    expected_packet_size = header_size + Enum.sum(frame_lengths) + padding_size
+
+    cond do
+      byte_size(data) < expected_packet_size ->
+        {data, packets |> Enum.reverse(), max(max_channels, channels)}
+
+      byte_size(data) == expected_packet_size ->
+        packet = %Buffer{
+          payload: delimitation_handler.(data, frame_lengths, header_size),
+          metadata: %{
+            duration: elapsed_time(frame_lengths, frame_duration)
+          }
+        }
+
+        {<<>>, [packet | packets] |> Enum.reverse(), max(max_channels, channels)}
+
+      true ->
+        <<raw_packet::binary-size(expected_packet_size), rest::binary>> = data
+
+        packet = %Buffer{
+          payload: delimitation_handler.(raw_packet, frame_lengths, header_size),
+          metadata: %{
+            duration: elapsed_time(frame_lengths, frame_duration)
+          }
+        }
+
+        maybe_parse(
+          rest,
+          state,
+          delimitation_handler,
+          [packet | packets],
+          max(max_channels, channels)
+        )
+    end
+  end
+
+  @spec elapsed_time(frame_lengths :: [non_neg_integer], frame_duration :: pos_integer) ::
+          elapsed_time :: Membrane.Time.non_neg_t()
   defp elapsed_time(frame_lengths, frame_duration) do
     # if a frame has length 0 it indicates a dropped frame and should not be
     # included in this calc
     present_frames = frame_lengths |> Enum.count(fn length -> length > 0 end)
     present_frames * frame_duration
-  end
-
-  @spec parse_data(binary, [non_neg_integer], pos_integer, delimitation_t, boolean) ::
-          {binary, boolean}
-  defp parse_data(data, frame_lengths, header_size, delimitation, self_delimiting?) do
-    cond do
-      self_delimiting? && delimitation == :undelimit ->
-        {undelimit(data, frame_lengths, header_size), false}
-
-      !self_delimiting? && delimitation == :delimit ->
-        {delimit(data, frame_lengths, header_size), true}
-
-      true ->
-        {data, self_delimiting?}
-    end
-  end
-
-  @spec delimit(binary, [non_neg_integer], pos_integer) :: binary
-  defp delimit(data, frame_lengths, header_size) do
-    <<head::binary-size(header_size), body::binary>> = data
-    <<head::binary, frame_lengths |> List.last() |> FrameLengths.encode()::binary, body::binary>>
-  end
-
-  @spec undelimit(binary, [non_neg_integer], pos_integer) :: binary
-  defp undelimit(data, frame_lengths, header_size) do
-    last_length = frame_lengths |> List.last() |> FrameLengths.encode()
-    last_length_size = byte_size(last_length)
-    parsed_header_size = header_size - last_length_size
-
-    <<parsed_head::binary-size(parsed_header_size), _last_length::binary-size(last_length_size),
-      body::binary>> = data
-
-    <<parsed_head::binary, body::binary>>
   end
 end
