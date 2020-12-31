@@ -2,7 +2,7 @@ defmodule Membrane.Opus.Parser.FrameLengths do
   @moduledoc false
   # Helper for Membrane.Opus.Parser for determining frame lengths
 
-  @spec encode(non_neg_integer) :: encoded_length :: binary
+  @spec encode(length :: non_neg_integer) :: encoded_length :: binary
   def encode(length) do
     if length < 252 do
       <<length::size(8)>>

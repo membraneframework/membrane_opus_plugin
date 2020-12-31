@@ -10,13 +10,14 @@ defmodule Membrane.Opus.Parser do
 
   use Membrane.Filter
 
-  import Membrane.Time
-
   alias Membrane.{Buffer, Opus, RemoteStream}
+  alias Membrane.Opus.Util
   alias __MODULE__.FrameLengths
 
+  @type delimitation_t :: :delimit | :undelimit | :keep
+
   def_options delimitation: [
-                spec: :delimit | :undelimit | :keep,
+                spec: delimitation_t,
                 default: :keep,
                 description: """
                 If input is delimited (as indicated by the `self_delimiting?`
@@ -66,15 +67,17 @@ defmodule Membrane.Opus.Parser do
     input_delimitation =
       Map.get(ctx.pads.input, :caps) || %{} |> Map.get(:self_delimiting?, state.input_delimited?)
 
-    {configuration_number, stereo_flag, frame_packing, data_without_toc} = parse_toc_byte(data)
-    {_mode, _bandwidth, frame_duration} = parse_configuration(configuration_number)
-    channels = parse_channels(stereo_flag)
+    {configuration_number, stereo_flag, frame_packing, data_without_toc} =
+      Util.parse_toc_byte(data)
+
+    {_mode, _bandwidth, frame_duration} = Util.parse_configuration(configuration_number)
+    channels = Util.parse_channels(stereo_flag)
 
     {frame_lengths, header_size} =
       FrameLengths.parse(frame_packing, data_without_toc, input_delimitation)
 
     {parsed_data, self_delimiting?} =
-      parse_data(data, frame_lengths, header_size, state, input_delimitation)
+      parse_data(data, frame_lengths, header_size, state.delimitation, input_delimitation)
 
     caps = %Opus{
       channels: channels,
@@ -99,13 +102,14 @@ defmodule Membrane.Opus.Parser do
     present_frames * frame_duration
   end
 
-  @spec parse_data(binary, [non_neg_integer], pos_integer, map, boolean) :: {binary, boolean}
-  defp parse_data(data, frame_lengths, header_size, state, self_delimiting?) do
+  @spec parse_data(binary, [non_neg_integer], pos_integer, delimitation_t, boolean) ::
+          {binary, boolean}
+  defp parse_data(data, frame_lengths, header_size, delimitation, self_delimiting?) do
     cond do
-      self_delimiting? && state.delimitation == :undelimit ->
+      self_delimiting? && delimitation == :undelimit ->
         {undelimit(data, frame_lengths, header_size), false}
 
-      !self_delimiting? && state.delimitation == :delimit ->
+      !self_delimiting? && delimitation == :delimit ->
         {delimit(data, frame_lengths, header_size), true}
 
       true ->
@@ -130,58 +134,4 @@ defmodule Membrane.Opus.Parser do
 
     <<parsed_head::binary, body::binary>>
   end
-
-  @spec parse_toc_byte(binary) ::
-          {config_number :: 0..31, stereo_flag :: 0..1, frame_packing :: 0..3,
-           rest_of_data :: binary}
-  defp parse_toc_byte(data) do
-    <<configuration_number::size(5), stereo_flag::size(1), frame_packing::size(2), rest::binary>> =
-      data
-
-    {configuration_number, stereo_flag, frame_packing, rest}
-  end
-
-  @spec parse_configuration(config_number :: 0..31) ::
-          {mode :: :silk | :hybrid | :celt,
-           bandwidth :: :narrow | :medium | :wide | :super_wide | :full,
-           frame_duration :: Membrane.Time.non_neg_t()}
-  defp parse_configuration(configuration_number) do
-    case configuration_number do
-      0 -> {:silk, :narrow, 10 |> milliseconds()}
-      1 -> {:silk, :narrow, 20 |> milliseconds()}
-      2 -> {:silk, :narrow, 40 |> milliseconds()}
-      3 -> {:silk, :narrow, 60 |> milliseconds()}
-      4 -> {:silk, :medium, 10 |> milliseconds()}
-      5 -> {:silk, :medium, 20 |> milliseconds()}
-      6 -> {:silk, :medium, 40 |> milliseconds()}
-      7 -> {:silk, :medium, 60 |> milliseconds()}
-      8 -> {:silk, :wide, 10 |> milliseconds()}
-      9 -> {:silk, :wide, 20 |> milliseconds()}
-      10 -> {:silk, :wide, 40 |> milliseconds()}
-      11 -> {:silk, :wide, 60 |> milliseconds()}
-      12 -> {:hybrid, :super_wide, 10 |> milliseconds()}
-      13 -> {:hybrid, :super_wide, 20 |> milliseconds()}
-      14 -> {:hybrid, :full, 10 |> milliseconds()}
-      15 -> {:hybrid, :full, 20 |> milliseconds()}
-      16 -> {:celt, :narrow, (2.5 * 1_000_000) |> trunc() |> nanoseconds()}
-      17 -> {:celt, :narrow, 5 |> milliseconds()}
-      18 -> {:celt, :narrow, 10 |> milliseconds()}
-      19 -> {:celt, :narrow, 20 |> milliseconds()}
-      20 -> {:celt, :wide, (2.5 * 1_000_000) |> trunc() |> nanoseconds()}
-      21 -> {:celt, :wide, 5 |> milliseconds()}
-      22 -> {:celt, :wide, 10 |> milliseconds()}
-      23 -> {:celt, :wide, 20 |> milliseconds()}
-      24 -> {:celt, :super_wide, (2.5 * 1_000_000) |> trunc() |> nanoseconds()}
-      25 -> {:celt, :super_wide, 5 |> milliseconds()}
-      26 -> {:celt, :super_wide, 10 |> milliseconds()}
-      27 -> {:celt, :super_wide, 20 |> milliseconds()}
-      28 -> {:celt, :full, (2.5 * 1_000_000) |> trunc() |> nanoseconds()}
-      29 -> {:celt, :full, 5 |> milliseconds()}
-      30 -> {:celt, :full, 10 |> milliseconds()}
-      31 -> {:celt, :full, 20 |> milliseconds()}
-    end
-  end
-
-  @spec parse_channels(0..1) :: channels :: 1..2
-  defp parse_channels(stereo_flag) when stereo_flag in 0..1, do: stereo_flag + 1
 end

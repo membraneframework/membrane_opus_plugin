@@ -8,6 +8,7 @@ defmodule Membrane.Opus.Decoder do
   alias __MODULE__.Native
   alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Caps.Audio.Raw
+  alias Membrane.Opus.Util
 
   @avg_opus_packet_size 960
 
@@ -19,11 +20,6 @@ defmodule Membrane.Opus.Decoder do
                 at any supported sample rate. 48 kHz is recommended. For details,
                 see https://tools.ietf.org/html/rfc7845#section-5.1 point 5.
                 """
-              ],
-              channels: [
-                spec: 1 | 2,
-                default: 2,
-                description: "Expected number of channels"
               ]
 
   def_input_pad :input,
@@ -40,7 +36,7 @@ defmodule Membrane.Opus.Decoder do
     state =
       options
       |> Map.from_struct()
-      |> Map.merge(%{native: nil})
+      |> Map.merge(%{native: nil, channels: nil})
 
     {:ok, state}
   end
@@ -68,15 +64,13 @@ defmodule Membrane.Opus.Decoder do
 
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
+    {_config_number, stereo_flag, _frame_packing, _rest} = Util.parse_toc_byte(buffer.payload)
+    channels = Util.parse_channels(stereo_flag)
+    {caps, state} = maybe_make_native(channels, state)
+
     decoded = Native.decode_packet(state.native, buffer.payload)
     buffer = %Buffer{buffer | payload: decoded}
-    {{:ok, buffer: {:output, buffer}}, state}
-  end
-
-  @impl true
-  def handle_stopped_to_prepared(_ctx, state) do
-    native = Native.create(state.sample_rate, state.channels)
-    {:ok, %{state | native: native}}
+    {{:ok, caps ++ [buffer: {:output, buffer}]}, state}
   end
 
   @impl true
