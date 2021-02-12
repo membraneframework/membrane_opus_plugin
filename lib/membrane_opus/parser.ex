@@ -148,7 +148,7 @@ defmodule Membrane.Opus.Parser do
         <<raw_packet::binary-size(expected_packet_size), rest::binary>> = data
 
         packet = %Buffer{
-          payload: delimitation_handler.(raw_packet, frame_lengths, header_size),
+          payload: delimitation_handler.handle(raw_packet, frame_lengths, header_size),
           metadata: %{
             duration: elapsed_time(frame_lengths, frame_duration)
           }

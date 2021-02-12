@@ -6,7 +6,9 @@ defmodule Membrane.Opus.Util do
 
   @spec parse_toc_byte(data :: binary) ::
           {config_number :: 0..31, stereo_flag :: 0..1, frame_packing :: 0..3}
-  def parse_toc_byte(<<config_number::size(5), stereo_flag::size(1), frame_packing::size(2), _rest::binary>>) do
+  def parse_toc_byte(
+        <<config_number::size(5), stereo_flag::size(1), frame_packing::size(2), _rest::binary>>
+      ) do
     {config_number, stereo_flag, frame_packing}
   end
 
