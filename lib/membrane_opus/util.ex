@@ -5,11 +5,15 @@ defmodule Membrane.Opus.Util do
   import Membrane.Time
 
   @spec parse_toc_byte(data :: binary) ::
-          {config_number :: 0..31, stereo_flag :: 0..1, frame_packing :: 0..3}
+          {config_number :: 0..31, stereo_flag :: 0..1, frame_packing :: 0..3} | :error
   def parse_toc_byte(
         <<config_number::size(5), stereo_flag::size(1), frame_packing::size(2), _rest::binary>>
       ) do
     {config_number, stereo_flag, frame_packing}
+  end
+
+  def parse_toc_byte(_data) do
+    :error
   end
 
   @spec parse_channels(stereo_flag :: 0..1) :: channels :: 1..2

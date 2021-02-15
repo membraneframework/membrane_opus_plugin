@@ -3,8 +3,7 @@ defmodule Membrane.Opus.Parser.Delimitation do
   # Helper module for delimiting or undelimiting packets
 
   @type delimitation_t :: :delimit | :undelimit | :keep
-
-  @type handler_t :: Handler
+  @type handler_t :: __MODULE__.Undelimiter | __MODULE__.Delimiter | __MODULE__.Keeper
 
   @spec get_handler(
           delimitation :: delimitation_t(),
