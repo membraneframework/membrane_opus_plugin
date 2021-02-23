@@ -3,14 +3,14 @@ defmodule Membrane.Opus.Parser.Delimitation do
   # Helper module for delimiting or undelimiting packets
 
   @type delimitation_t :: :delimit | :undelimit | :keep
-  @type handler_t :: __MODULE__.Undelimiter | __MODULE__.Delimiter | __MODULE__.Keeper
+  @type processor_t :: __MODULE__.Undelimiter | __MODULE__.Delimiter | __MODULE__.Keeper
 
-  @spec get_handler(
+  @spec get_processor(
           delimitation :: delimitation_t(),
           self_delimiting? :: boolean
         ) ::
-          {handler :: handler_t, self_delimiting? :: boolean}
-  def get_handler(delimitation, self_delimiting?) do
+          {processor :: processor_t, self_delimiting? :: boolean}
+  def get_processor(delimitation, self_delimiting?) do
     cond do
       self_delimiting? && delimitation == :undelimit ->
         {__MODULE__.Undelimiter, false}
@@ -23,8 +23,10 @@ defmodule Membrane.Opus.Parser.Delimitation do
     end
   end
 
-  defmodule Handler do
-    @callback handle(
+  defmodule Processor do
+    @moduledoc false
+
+    @callback process(
                 data :: binary,
                 frame_lengths :: [non_neg_integer],
                 header_size :: pos_integer
@@ -41,11 +43,13 @@ defmodule Membrane.Opus.Parser.Delimitation do
   end
 
   defmodule Undelimiter do
-    @behaviour Handler
+    @moduledoc false
 
-    @impl Handler
-    def handle(data, frame_lengths, header_size) do
-      last_length = frame_lengths |> List.last() |> Handler.encode_length()
+    @behaviour Processor
+
+    @impl Processor
+    def process(data, frame_lengths, header_size) do
+      last_length = frame_lengths |> List.last() |> Processor.encode_length()
       last_length_size = byte_size(last_length)
       parsed_header_size = header_size - last_length_size
 
@@ -57,21 +61,25 @@ defmodule Membrane.Opus.Parser.Delimitation do
   end
 
   defmodule Delimiter do
-    @behaviour Handler
+    @moduledoc false
 
-    @impl Handler
-    def handle(data, frame_lengths, header_size) do
+    @behaviour Processor
+
+    @impl Processor
+    def process(data, frame_lengths, header_size) do
       <<head::binary-size(header_size), body::binary>> = data
 
-      <<head::binary, frame_lengths |> List.last() |> Handler.encode_length()::binary,
+      <<head::binary, frame_lengths |> List.last() |> Processor.encode_length()::binary,
         body::binary>>
     end
   end
 
   defmodule Keeper do
-    @behaviour Handler
+    @moduledoc false
 
-    @impl Handler
-    def handle(data, _frame_lengths, _header_size), do: data
+    @behaviour Processor
+
+    @impl Processor
+    def process(data, _frame_lengths, _header_size), do: data
   end
 end

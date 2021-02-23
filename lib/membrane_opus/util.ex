@@ -17,7 +17,9 @@ defmodule Membrane.Opus.Util do
   end
 
   @spec parse_channels(stereo_flag :: 0..1) :: channels :: 1..2
-  def parse_channels(stereo_flag) when stereo_flag in 0..1, do: stereo_flag + 1
+  def parse_channels(stereo_flag) when stereo_flag in 0..1 do
+    stereo_flag + 1
+  end
 
   @spec parse_configuration(config_number :: 0..31) ::
           {mode :: :silk | :hybrid | :celt,
