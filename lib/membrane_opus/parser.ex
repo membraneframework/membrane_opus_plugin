@@ -97,22 +97,7 @@ defmodule Membrane.Opus.Parser do
         []
       end
 
-    redemand_actions =
-      if byte_size(buffer) > 0 do
-        [redemand: :output]
-      else
-        []
-      end
-
-    actions = packet_actions ++ redemand_actions
-
-    # it's an invariant of this filter that we send packets and/or need to
-    # redemand
-    if length(actions) > 0 do
-      {{:ok, actions}, %{state | buffer: buffer}}
-    else
-      {:error, "Invalid input"}
-    end
+    {{:ok, packet_actions ++ [redemand: :output]}, %{state | buffer: buffer}}
   end
 
   @spec maybe_parse(
@@ -122,11 +107,15 @@ defmodule Membrane.Opus.Parser do
           packets :: [Buffer.t()],
           channels :: 0..2
         ) :: {remaining_buffer :: binary, packets :: [Buffer.t()], channels :: 0..2}
-  defp maybe_parse(data, input_delimited?, processor, packets \\ [], channels \\ 0) do
-    with {configuration_number, stereo_flag, frame_packing} <- Util.parse_toc_byte(data),
+  defp maybe_parse(data, input_delimited?, processor, packets \\ [], channels \\ 0)
+
+  defp maybe_parse(data, input_delimited?, processor, packets, channels)
+       when byte_size(data) > 0 do
+    with {:ok, configuration_number, stereo_flag, frame_packing} <- Util.parse_toc_byte(data),
          channels <- max(channels, Util.parse_channels(stereo_flag)),
-         {_mode, _bandwidth, frame_duration} <- Util.parse_configuration(configuration_number),
-         {header_size, frame_lengths, padding_size} <-
+         {:ok, _mode, _bandwidth, frame_duration} <-
+           Util.parse_configuration(configuration_number),
+         {:ok, header_size, frame_lengths, padding_size} <-
            FrameLengths.parse(frame_packing, data, input_delimited?),
          expected_packet_size <- header_size + Enum.sum(frame_lengths) + padding_size,
          <<_raw_packet::binary-size(expected_packet_size), rest::binary>> <- data do
@@ -148,6 +137,10 @@ defmodule Membrane.Opus.Parser do
       _ ->
         {data, packets |> Enum.reverse(), channels}
     end
+  end
+
+  defp maybe_parse(data, _input_delimited?, _processor, packets, channels) do
+    {data, packets |> Enum.reverse(), channels}
   end
 
   @spec elapsed_time(frame_lengths :: [non_neg_integer], frame_duration :: pos_integer) ::

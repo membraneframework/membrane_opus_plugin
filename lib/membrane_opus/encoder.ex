@@ -139,10 +139,14 @@ defmodule Membrane.Opus.Encoder do
     end
   end
 
-  defp map_application_to_value(:voip), do: {:ok, 2048}
-  defp map_application_to_value(:audio), do: {:ok, 2049}
-  defp map_application_to_value(:low_delay), do: {:ok, 2051}
-  defp map_application_to_value(_), do: {:error, "Invalid application"}
+  defp map_application_to_value(application) do
+    case application do
+      :voip -> {:ok, 2048}
+      :audio -> {:ok, 2049}
+      :low_delay -> {:ok, 2051}
+      _ -> {:error, "Invalid application"}
+    end
+  end
 
   defp validate_sample_rate(sample_rate) when sample_rate in @allowed_sample_rates do
     {:ok, sample_rate}
