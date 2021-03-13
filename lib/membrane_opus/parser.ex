@@ -18,10 +18,10 @@ defmodule Membrane.Opus.Parser do
                 spec: Delimitation.delimitation_t(),
                 default: :keep,
                 description: """
-                If input is delimited (as indicated by the `self_delimiting?`
+                If input is delimitted? (as indicated by the `self_delimiting?`
                 field in %Opus) and `:undelimit` is selected, will remove delimiting.
 
-                If input is not delimited and `:delimit` is selected, will add delimiting.
+                If input is not delimitted? and `:delimit` is selected, will add delimiting.
 
                 If `:keep` is selected, will not change delimiting.
 
@@ -31,13 +31,13 @@ defmodule Membrane.Opus.Parser do
                 on the self-delimiting Opus format.
                 """
               ],
-              force_reading_input_as_delimited?: [
+              input_delimitted?: [
                 spec: boolean(),
                 default: false,
                 description: """
-                If you know that the input is self-delimited but you're reading from
+                If you know that the input is self-delimitted? but you're reading from
                 some element that isn't sending the correct structure, you can set this
-                to true to force the Parser to assume the input is self-delimited and
+                to true to force the Parser to assume the input is self-delimitted? and
                 ignore upstream caps information on self-delimitation.
                 """
               ]
@@ -57,7 +57,6 @@ defmodule Membrane.Opus.Parser do
       options
       |> Map.from_struct()
       |> Map.merge(%{
-        input_delimited?: options.force_reading_input_as_delimited?,
         buffer: <<>>
       })
 
@@ -70,55 +69,53 @@ defmodule Membrane.Opus.Parser do
   end
 
   @impl true
-  def handle_caps(:input, caps, _ctx, state) when not state.force_reading_input_as_delimited? do
-    {:ok, %{state | input_delimited?: caps.self_delimiting?}}
-  end
-
-  @impl true
   def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
     {delimitation_processor, self_delimiting?} =
-      Delimitation.get_processor(state.delimitation, state.input_delimited?)
+      Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
-    {buffer, packets, channels} =
-      maybe_parse(state.buffer <> data, state.input_delimited?, delimitation_processor)
+    case maybe_parse(state.buffer <> data, state.input_delimitted?, delimitation_processor) do
+      {:ok, buffer, packets, channels} ->
+        packet_actions =
+          if length(packets) > 0 do
+            [
+              caps:
+                {:output,
+                 %Opus{
+                   channels: channels,
+                   self_delimiting?: self_delimiting?
+                 }},
+              buffer: {:output, packets}
+            ]
+          else
+            []
+          end
 
-    packet_actions =
-      if length(packets) > 0 do
-        [
-          caps:
-            {:output,
-             %Opus{
-               channels: channels,
-               self_delimiting?: self_delimiting?
-             }},
-          buffer: {:output, packets}
-        ]
-      else
-        []
-      end
+        {{:ok, packet_actions ++ [redemand: :output]}, %{state | buffer: buffer}}
 
-    {{:ok, packet_actions ++ [redemand: :output]}, %{state | buffer: buffer}}
+      :error ->
+        {{:error, "An error occured in parsing"}, state}
+    end
   end
 
   @spec maybe_parse(
           data :: binary,
-          input_delimited? :: boolean,
+          input_delimitted? :: boolean,
           processor :: Delimitation.processor_t(),
           packets :: [Buffer.t()],
           channels :: 0..2
-        ) :: {remaining_buffer :: binary, packets :: [Buffer.t()], channels :: 0..2}
-  defp maybe_parse(data, input_delimited?, processor, packets \\ [], channels \\ 0)
+        ) :: {:ok, remaining_buffer :: binary, packets :: [Buffer.t()], channels :: 0..2} | :error
+  defp maybe_parse(data, input_delimitted?, processor, packets \\ [], channels \\ 0)
 
-  defp maybe_parse(data, input_delimited?, processor, packets, channels)
+  defp maybe_parse(data, input_delimitted?, processor, packets, channels)
        when byte_size(data) > 0 do
     with {:ok, configuration_number, stereo_flag, frame_packing} <- Util.parse_toc_byte(data),
          channels <- max(channels, Util.parse_channels(stereo_flag)),
          {:ok, _mode, _bandwidth, frame_duration} <-
            Util.parse_configuration(configuration_number),
          {:ok, header_size, frame_lengths, padding_size} <-
-           FrameLengths.parse(frame_packing, data, input_delimited?),
+           FrameLengths.parse(frame_packing, data, input_delimitted?),
          expected_packet_size <- header_size + Enum.sum(frame_lengths) + padding_size,
-         <<_raw_packet::binary-size(expected_packet_size), rest::binary>> <- data do
+         {:ok, rest} <- rest_of_packet(data, expected_packet_size) do
       packet = %Buffer{
         payload: processor.process(data, frame_lengths, header_size),
         metadata: %{
@@ -128,19 +125,34 @@ defmodule Membrane.Opus.Parser do
 
       maybe_parse(
         rest,
-        input_delimited?,
+        input_delimitted?,
         processor,
         [packet | packets],
         channels
       )
     else
-      _ ->
-        {data, packets |> Enum.reverse(), channels}
+      {:error, :cont} ->
+        {:ok, data, packets |> Enum.reverse(), channels}
+
+      :error ->
+        :error
     end
   end
 
-  defp maybe_parse(data, _input_delimited?, _processor, packets, channels) do
-    {data, packets |> Enum.reverse(), channels}
+  defp maybe_parse(data, _input_delimitted?, _processor, packets, channels) do
+    {:ok, data, packets |> Enum.reverse(), channels}
+  end
+
+  @spec rest_of_packet(data :: binary, expected_packet_size :: pos_integer) ::
+          {:ok, rest :: binary} | {:error, :cont}
+  defp rest_of_packet(data, expected_packet_size) do
+    case data do
+      <<_raw_packet::binary-size(expected_packet_size), rest::binary>> ->
+        {:ok, rest}
+
+      _ ->
+        {:error, :cont}
+    end
   end
 
   @spec elapsed_time(frame_lengths :: [non_neg_integer], frame_duration :: pos_integer) ::
