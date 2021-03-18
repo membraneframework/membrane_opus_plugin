@@ -1,7 +1,7 @@
 defmodule Membrane.Opus.Plugin.Mixfile do
   use Mix.Project
 
-  @version "0.2.1"
+  @version "0.3.0"
   @github_url "https://github.com/membraneframework/membrane_opus_plugin"
 
   def project do
@@ -35,6 +35,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
 
   defp deps do
     [
+      {:bunch, "~> 1.3"},
       {:membrane_core, "~> 0.6.0"},
       {:membrane_opus_format, "~> 0.3.0"},
       {:membrane_remote_stream_format, "~> 0.1.0"},

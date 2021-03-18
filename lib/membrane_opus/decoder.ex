@@ -8,7 +8,7 @@ defmodule Membrane.Opus.Decoder do
   alias __MODULE__.Native
   alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Caps.Audio.Raw
-  alias Membrane.Opus.PacketUtils
+  alias Membrane.Opus.Util
 
   @avg_opus_packet_size 960
 
@@ -64,7 +64,8 @@ defmodule Membrane.Opus.Decoder do
 
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
-    {:ok, %{channels: channels}, _data} = PacketUtils.skip_toc(buffer.payload)
+    {:ok, _config_number, stereo_flag, _frame_packing} = Util.parse_toc_byte(buffer.payload)
+    channels = Util.parse_channels(stereo_flag)
     {caps, state} = maybe_make_native(channels, state)
 
     decoded = Native.decode_packet(state.native, buffer.payload)

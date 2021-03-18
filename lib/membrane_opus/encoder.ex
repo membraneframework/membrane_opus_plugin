@@ -13,21 +13,16 @@ defmodule Membrane.Opus.Encoder do
   alias Membrane.Opus
 
   @list_type allowed_channels :: [1, 2]
-
   @list_type allowed_applications :: [:voip, :audio, :low_delay]
-
   @list_type allowed_sample_rates :: [8000, 12_000, 16_000, 24_000, 48_000]
-
-  @supported_input {Raw,
-                    format: :s16le,
-                    channels: Matcher.one_of(@allowed_channels),
-                    sample_rate: Matcher.one_of(@allowed_sample_rates)}
 
   def_options application: [
                 spec: allowed_applications(),
                 default: :audio,
                 description: """
-                Output type (similar to compression amount). See https://opus-codec.org/docs/opus_api-1.3.1/group__opus__encoder.html#gaa89264fd93c9da70362a0c9b96b9ca88.
+                Output type (similar to compression amount).
+
+                See https://opus-codec.org/docs/opus_api-1.3.1/group__opus__encoder.html#gaa89264fd93c9da70362a0c9b96b9ca88.
                 """
               ],
               input_caps: [
@@ -35,11 +30,18 @@ defmodule Membrane.Opus.Encoder do
                 type: :caps,
                 default: nil,
                 description: """
-                Input type - used to set input sample rate and channels
+                Input type - used to set input sample rate and channels.
                 """
               ]
 
-  def_input_pad :input, demand_unit: :bytes, caps: @supported_input
+  def_input_pad :input,
+    demand_unit: :bytes,
+    caps:
+      {Raw,
+       format: :s16le,
+       channels: Matcher.one_of(@allowed_channels),
+       sample_rate: Matcher.one_of(@allowed_sample_rates)}
+
   def_output_pad :output, caps: {Opus, self_delimiting?: false}
 
   @impl true
@@ -91,10 +93,7 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
-    # holds a buffer of raw input that is not yet encoded
-    to_encode = state.queue <> data
-
-    case encode_buffer(to_encode, state, frame_size_in_bytes(state)) do
+    case encode_buffer(state.queue <> data, state, frame_size_in_bytes(state)) do
       {:ok, {[], rest}} ->
         # nothing was encoded
         {{:ok, redemand: :output}, %{state | queue: rest}}
@@ -140,37 +139,23 @@ defmodule Membrane.Opus.Encoder do
     end
   end
 
-  defp map_application_to_value(:voip) do
-    {:ok, 2048}
-  end
-
-  defp map_application_to_value(:audio) do
-    {:ok, 2049}
-  end
-
-  defp map_application_to_value(:low_delay) do
-    {:ok, 2051}
-  end
-
-  defp map_application_to_value(_) do
-    {:error, :invalid_application}
+  defp map_application_to_value(application) do
+    case application do
+      :voip -> {:ok, 2048}
+      :audio -> {:ok, 2049}
+      :low_delay -> {:ok, 2051}
+      _ -> {:error, "Invalid application"}
+    end
   end
 
   defp validate_sample_rate(sample_rate) when sample_rate in @allowed_sample_rates do
     {:ok, sample_rate}
   end
 
-  defp validate_sample_rate(_) do
-    {:error, :invalid_sample_rate}
-  end
+  defp validate_sample_rate(_), do: {:error, "Invalid sample rate"}
 
-  defp validate_channels(channels) when channels in @allowed_channels do
-    {:ok, channels}
-  end
-
-  defp validate_channels(_) do
-    {:error, :invalid_channels}
-  end
+  defp validate_channels(channels) when channels in @allowed_channels, do: {:ok, channels}
+  defp validate_channels(_), do: {:error, "Invalid channels"}
 
   defp frame_size(state) do
     # 20 milliseconds

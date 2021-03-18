@@ -1,79 +1,166 @@
 defmodule Membrane.Opus.Parser do
   @moduledoc """
-  Parses self-delimiting Opus stream.
+  Parses a raw incoming Opus stream and adds caps information, as well as metadata.
 
-  The self-delimiting version of Opus packet contains all the information about frame sizes
-  needed to separate the packet from byte stream and decode it. This parser drops the last frame size
-  from each packet header, converting packets to the basic version. The remaining frame size needs
-  to be derived from entire packet size.
-  See https://tools.ietf.org/html/rfc6716#appendix-B for details.
+  Adds the following metadata:
+
+  duration :: non_neg_integer()
+    Number of nanoseconds encoded in this packet
   """
+
   use Membrane.Filter
 
+  alias __MODULE__.{Delimitation, FrameLengths}
   alias Membrane.{Buffer, Opus, RemoteStream}
-  alias Membrane.Opus.PacketUtils
+  alias Membrane.Opus.Util
+
+  def_options delimitation: [
+                spec: Delimitation.delimitation_t(),
+                default: :keep,
+                description: """
+                If input is delimitted? (as indicated by the `self_delimiting?`
+                field in %Opus) and `:undelimit` is selected, will remove delimiting.
+
+                If input is not delimitted? and `:delimit` is selected, will add delimiting.
+
+                If `:keep` is selected, will not change delimiting.
+
+                Otherwise will act like `:keep`.
+
+                See https://tools.ietf.org/html/rfc6716#appendix-B for details
+                on the self-delimiting Opus format.
+                """
+              ],
+              input_delimitted?: [
+                spec: boolean(),
+                default: false,
+                description: """
+                If you know that the input is self-delimitted? but you're reading from
+                some element that isn't sending the correct structure, you can set this
+                to true to force the Parser to assume the input is self-delimitted? and
+                ignore upstream caps information on self-delimitation.
+                """
+              ]
 
   def_input_pad :input,
     demand_unit: :buffers,
-    caps: [{Opus, self_delimiting?: true}, {RemoteStream, content_format: one_of([Opus, nil])}]
+    caps: [
+      Opus,
+      {RemoteStream, type: :packetized, content_format: one_of([Opus, nil])}
+    ]
 
-  def_output_pad :output, caps: {Opus, self_delimiting?: false}
-
-  @impl true
-  def handle_init(_opts) do
-    {:ok, %{partial_packet: <<>>, timestamp: 0}}
-  end
+  def_output_pad :output, caps: Opus
 
   @impl true
-  def handle_caps(:input, _caps, _ctx, state) do
+  def handle_init(%__MODULE__{} = options) do
+    state =
+      options
+      |> Map.from_struct()
+      |> Map.merge(%{
+        buffer: <<>>
+      })
+
     {:ok, state}
   end
 
   @impl true
-  def handle_demand(:output, _size, _unit, _ctx, state) do
-    {{:ok, demand: {:input, 1}}, state}
+  def handle_demand(:output, bufs, :buffers, _ctx, state) do
+    {{:ok, demand: {:input, bufs}}, state}
   end
 
   @impl true
-  def handle_process(:input, buffer, ctx, state) do
-    payload = state.partial_packet <> buffer.payload
+  def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
+    {delimitation_processor, self_delimiting?} =
+      Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
-    caps =
-      if !ctx.pads.output.caps do
-        {:ok, %{channels: channels}, _data} = PacketUtils.skip_toc(payload)
-        [caps: {:output, %Opus{channels: channels}}]
-      else
-        []
-      end
+    case maybe_parse(state.buffer <> data, state.input_delimitted?, delimitation_processor) do
+      {:ok, buffer, packets, channels} ->
+        packet_actions =
+          if length(packets) > 0 do
+            [
+              caps:
+                {:output,
+                 %Opus{
+                   channels: channels,
+                   self_delimiting?: self_delimiting?
+                 }},
+              buffer: {:output, packets}
+            ]
+          else
+            []
+          end
 
-    {payloads, partial_packet} = parse_packets(payload, [])
+        {{:ok, packet_actions ++ [redemand: :output]}, %{state | buffer: buffer}}
 
-    {buffers, timestamp} =
-      Enum.map_reduce(payloads, state.timestamp, fn {payload, duration}, timestamp ->
-        {%Buffer{payload: payload, metadata: %{timestamp: timestamp}}, timestamp + duration}
-      end)
-
-    state = %{state | partial_packet: partial_packet, timestamp: timestamp}
-    {{:ok, caps ++ [buffer: {:output, buffers}, redemand: :output]}, state}
+      :error ->
+        {{:error, "An error occured in parsing"}, state}
+    end
   end
 
-  defp parse_packets(payload, parsed_packets) do
-    with {:ok, %{frame_duration: frame_duration, code: code}, data} <-
-           PacketUtils.skip_toc(payload),
-         {:ok, mode, frames_cnt, padding_len, data} <- PacketUtils.skip_code(code, data),
-         {:ok, _preserved_frames_size, rest} <-
-           PacketUtils.skip_frame_sizes(mode, data, max(0, frames_cnt - 1)),
-         new_header_size = byte_size(payload) - byte_size(rest),
-         {:ok, frames_size, data} <- PacketUtils.skip_frame_sizes(mode, data, frames_cnt),
-         body_size = frames_size + padding_len,
-         <<body::binary-size(body_size), remaining_packets::binary>> <- data do
-      <<new_header::binary-size(new_header_size), _rest::binary>> = payload
+  @spec maybe_parse(
+          data :: binary,
+          input_delimitted? :: boolean,
+          processor :: Delimitation.processor_t(),
+          packets :: [Buffer.t()],
+          channels :: 0..2
+        ) :: {:ok, remaining_buffer :: binary, packets :: [Buffer.t()], channels :: 0..2} | :error
+  defp maybe_parse(data, input_delimitted?, processor, packets \\ [], channels \\ 0)
 
-      parse_packets(remaining_packets, [
-        {new_header <> body, frame_duration * frames_cnt} | parsed_packets
-      ])
+  defp maybe_parse(data, input_delimitted?, processor, packets, channels)
+       when byte_size(data) > 0 do
+    with {:ok, configuration_number, stereo_flag, frame_packing} <- Util.parse_toc_byte(data),
+         channels <- max(channels, Util.parse_channels(stereo_flag)),
+         {:ok, _mode, _bandwidth, frame_duration} <-
+           Util.parse_configuration(configuration_number),
+         {:ok, header_size, frame_lengths, padding_size} <-
+           FrameLengths.parse(frame_packing, data, input_delimitted?),
+         expected_packet_size <- header_size + Enum.sum(frame_lengths) + padding_size,
+         {:ok, rest} <- rest_of_packet(data, expected_packet_size) do
+      packet = %Buffer{
+        payload: processor.process(data, frame_lengths, header_size),
+        metadata: %{
+          duration: elapsed_time(frame_lengths, frame_duration)
+        }
+      }
+
+      maybe_parse(
+        rest,
+        input_delimitted?,
+        processor,
+        [packet | packets],
+        channels
+      )
     else
-      _end_of_data -> {Enum.reverse(parsed_packets), payload}
+      {:error, :cont} ->
+        {:ok, data, packets |> Enum.reverse(), channels}
+
+      :error ->
+        :error
     end
+  end
+
+  defp maybe_parse(data, _input_delimitted?, _processor, packets, channels) do
+    {:ok, data, packets |> Enum.reverse(), channels}
+  end
+
+  @spec rest_of_packet(data :: binary, expected_packet_size :: pos_integer) ::
+          {:ok, rest :: binary} | {:error, :cont}
+  defp rest_of_packet(data, expected_packet_size) do
+    case data do
+      <<_raw_packet::binary-size(expected_packet_size), rest::binary>> ->
+        {:ok, rest}
+
+      _ ->
+        {:error, :cont}
+    end
+  end
+
+  @spec elapsed_time(frame_lengths :: [non_neg_integer], frame_duration :: pos_integer) ::
+          elapsed_time :: Membrane.Time.non_neg_t()
+  defp elapsed_time(frame_lengths, frame_duration) do
+    # if a frame has length 0 it indicates a dropped frame and should not be
+    # included in this calc
+    present_frames = frame_lengths |> Enum.count(fn length -> length > 0 end)
+    present_frames * frame_duration
   end
 end

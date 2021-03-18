@@ -1,22 +1,24 @@
 defmodule Membrane.Opus.Encoder.EncoderTest do
   use ExUnit.Case, async: true
 
-  alias Membrane.Opus
+  alias Membrane.Opus.Encoder
   alias Membrane.Caps.Audio.Raw
   import Membrane.Testing.Assertions
   alias Membrane.Testing
   import Membrane.ParentSpec
 
-  @input_path "test/fixtures/sample_input.raw"
-  @output_path "test/fixtures/encoder_output.opus"
-  @reference_path "test/fixtures/encoder_output_reference.opus"
+  @input_path "test/fixtures/raw_packets"
+  @output_path "test/fixtures/encoder_output"
+  @reference_path "test/fixtures/encoder_output_reference"
 
   setup do
     on_exit(fn -> File.rm(@output_path) end)
 
     elements = [
-      source: %Membrane.File.Source{location: @input_path},
-      encoder: %Opus.Encoder{
+      source: %Membrane.File.Source{
+        location: @input_path
+      },
+      encoder: %Encoder{
         application: :audio,
         input_caps: %Raw{
           channels: 2,
@@ -24,14 +26,14 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
           sample_rate: 48_000
         }
       },
-      serializer: Opus.Serializer,
-      sink: %Membrane.File.Sink{location: @output_path}
+      sink: %Membrane.File.Sink{
+        location: @output_path
+      }
     ]
 
     links = [
       link(:source)
       |> to(:encoder)
-      |> to(:serializer)
       |> to(:sink)
     ]
 
