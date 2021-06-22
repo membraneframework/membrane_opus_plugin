@@ -4,6 +4,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
   import Membrane.Time
   import Membrane.Testing.Assertions
 
+  alias Membrane.RemoteStream
   alias Membrane.Opus.Parser
   alias Membrane.{Opus, Buffer}
   alias Membrane.Testing.{Source, Sink, Pipeline}
@@ -80,6 +81,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
     }
   ]
 
+  @tag :debug
   test "non-self-delimiting input and output" do
     inputs =
       @fixtures
@@ -87,7 +89,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     options = %Pipeline.Options{
       elements: [
-        source: %Source{output: inputs},
+        source: %Source{output: inputs, caps: %RemoteStream{type: :packetized}},
         parser: Parser,
         sink: Sink
       ]
@@ -109,6 +111,8 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)
+
+    Pipeline.stop_and_terminate(pipeline, blocking?: true)
   end
 
   test "non-self-delimiting input, self-delimiting output" do
@@ -118,7 +122,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     options = %Pipeline.Options{
       elements: [
-        source: %Source{output: inputs},
+        source: %Source{output: inputs, caps: %RemoteStream{type: :packetized}},
         parser: %Parser{delimitation: :delimit},
         sink: Sink
       ]
@@ -144,6 +148,8 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)
+
+    Pipeline.stop_and_terminate(pipeline, blocking?: true)
   end
 
   test "self-delimiting input and output" do
@@ -153,7 +159,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     options = %Pipeline.Options{
       elements: [
-        source: %Source{output: inputs},
+        source: %Source{output: inputs, caps: %RemoteStream{type: :packetized}},
         parser: %Parser{input_delimitted?: true},
         sink: Sink
       ]
@@ -179,6 +185,8 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)
+
+    Pipeline.stop_and_terminate(pipeline, blocking?: true)
   end
 
   test "self-delimiting input, non-self-delimiting output" do
@@ -188,7 +196,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     options = %Pipeline.Options{
       elements: [
-        source: %Source{output: inputs},
+        source: %Source{output: inputs, caps: %RemoteStream{type: :packetized}},
         parser: %Parser{delimitation: :undelimit, input_delimitted?: true},
         sink: Sink
       ]
@@ -210,5 +218,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)
+
+    Pipeline.stop_and_terminate(pipeline, blocking?: true)
   end
 end

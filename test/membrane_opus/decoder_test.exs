@@ -3,6 +3,7 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
 
   alias Membrane.Opus.Decoder
   alias Membrane.Opus.Support.Reader
+  alias Membrane.RemoteStream
 
   @sample_opus_packets Reader.read_packets("test/fixtures/decoder_output_reference")
   @sample_raw Reader.read_packets("test/fixtures/raw_packets")
@@ -14,7 +15,8 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
 
     elements = [
       source: %Testing.Source{
-        output: @sample_opus_packets
+        output: @sample_opus_packets,
+        caps: %RemoteStream{type: :packetized}
       },
       opus: Decoder,
       sink: Testing.Sink
@@ -38,5 +40,7 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
 
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)
+
+    Membrane.Pipeline.stop_and_terminate(pipeline, blocking?: true)
   end
 end

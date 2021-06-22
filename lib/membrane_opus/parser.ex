@@ -64,6 +64,12 @@ defmodule Membrane.Opus.Parser do
   end
 
   @impl true
+  def handle_caps(:input, _caps, _ctx, state) do
+    # ignore caps, they will be sent in handle_process
+    {:ok, state}
+  end
+
+  @impl true
   def handle_demand(:output, bufs, :buffers, _ctx, state) do
     {{:ok, demand: {:input, bufs}}, state}
   end
