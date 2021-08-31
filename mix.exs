@@ -39,7 +39,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       {:membrane_core, "~> 0.7.0"},
       {:membrane_opus_format, "~> 0.3.0"},
       {:membrane_caps_audio_raw, "~> 0.4.0"},
-      {:unifex, "~> 0.6.0"},
+      {:unifex, github: "membraneframework/unifex", branch: "cnode-thread-api", override: true},
       {:membrane_common_c, "~> 0.8.0"},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.23", only: :dev},
