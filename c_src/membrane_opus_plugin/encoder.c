@@ -51,13 +51,12 @@ UNIFEX_TERM encode_packet(UnifexEnv *env, State *state,
     return encode_packet_result_error(env, get_error(encoded_size_or_error));
   }
 
-  UnifexPayload *out_payload = (UnifexPayload *)unifex_alloc(sizeof(UnifexPayload));
-  unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, encoded_size_or_error, out_payload);
-  memcpy(out_payload->data, state->buffer, encoded_size_or_error);
+  UnifexPayload out_payload;
+  unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, encoded_size_or_error, &out_payload);
+  memcpy(out_payload.data, state->buffer, encoded_size_or_error);
 
-  UNIFEX_TERM res = encode_packet_result_ok(env, out_payload);
-  unifex_payload_release(out_payload);
-  unifex_free(out_payload);
+  UNIFEX_TERM res = encode_packet_result_ok(env, &out_payload);
+  unifex_payload_release(&out_payload);
   return res;
 }
 

@@ -43,12 +43,12 @@ UNIFEX_TERM decode_packet(UnifexEnv *env, State *state,
   unsigned output_size =
       samples_per_channel * state->channels * sizeof(opus_int16);
 
-  UnifexPayload *out_payload = (UnifexPayload *)unifex_alloc(sizeof(UnifexPayload));
-  unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, output_size, out_payload);
+  UnifexPayload out_payload;
+  unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, output_size, &out_payload);
 
   int decoded_samples_per_channel =
       opus_decode(state->decoder, in_payload->data, in_payload->size,
-                  (opus_int16 *)out_payload->data, out_payload->size, 0);
+                  (opus_int16 *)out_payload.data, out_payload.size, 0);
   if (decoded_samples_per_channel < 0) {
     error = (char *)opus_strerror(decoded_samples_per_channel);
     goto decode_packet_error_and_cleanup;
@@ -58,11 +58,10 @@ UNIFEX_TERM decode_packet(UnifexEnv *env, State *state,
     goto decode_packet_error_and_cleanup;
   }
 
-  return decode_packet_result(env, out_payload);
+  return decode_packet_result(env, &out_payload);
 
 decode_packet_error_and_cleanup:
-  unifex_payload_release(out_payload);
-  unifex_free(out_payload);
+  unifex_payload_release(&out_payload);
 decode_packet_error:
   return unifex_raise(env, error);
 }
