@@ -57,6 +57,7 @@ defmodule Membrane.Opus.Parser do
       options
       |> Map.from_struct()
       |> Map.merge(%{
+        pts: 0,
         buffer: <<>>
       })
 
@@ -79,8 +80,13 @@ defmodule Membrane.Opus.Parser do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
-    case maybe_parse(state.buffer <> data, state.input_delimitted?, delimitation_processor) do
-      {:ok, buffer, packets, channels} ->
+    case maybe_parse(
+           state.buffer <> data,
+           state.pts,
+           state.input_delimitted?,
+           delimitation_processor
+         ) do
+      {:ok, buffer, pts, packets, channels} ->
         packet_actions =
           if length(packets) > 0 do
             [
@@ -96,7 +102,7 @@ defmodule Membrane.Opus.Parser do
             []
           end
 
-        {{:ok, packet_actions ++ [redemand: :output]}, %{state | buffer: buffer}}
+        {{:ok, packet_actions ++ [redemand: :output]}, %{state | buffer: buffer, pts: pts}}
 
       :error ->
         {{:error, "An error occured in parsing"}, state}
@@ -105,14 +111,15 @@ defmodule Membrane.Opus.Parser do
 
   @spec maybe_parse(
           data :: binary,
+          pts :: Membrane.Time.t(),
           input_delimitted? :: boolean,
           processor :: Delimitation.processor_t(),
           packets :: [Buffer.t()],
           channels :: 0..2
         ) :: {:ok, remaining_buffer :: binary, packets :: [Buffer.t()], channels :: 0..2} | :error
-  defp maybe_parse(data, input_delimitted?, processor, packets \\ [], channels \\ 0)
+  defp maybe_parse(data, pts, input_delimitted?, processor, packets \\ [], channels \\ 0)
 
-  defp maybe_parse(data, input_delimitted?, processor, packets, channels)
+  defp maybe_parse(data, pts, input_delimitted?, processor, packets, channels)
        when byte_size(data) > 0 do
     with {:ok, configuration_number, stereo_flag, frame_packing} <- Util.parse_toc_byte(data),
          channels <- max(channels, Util.parse_channels(stereo_flag)),
@@ -122,15 +129,19 @@ defmodule Membrane.Opus.Parser do
            FrameLengths.parse(frame_packing, data, input_delimitted?),
          expected_packet_size <- header_size + Enum.sum(frame_lengths) + padding_size,
          {:ok, rest} <- rest_of_packet(data, expected_packet_size) do
+      duration = elapsed_time(frame_lengths, frame_duration)
+
       packet = %Buffer{
+        pts: pts,
         payload: processor.process(data, frame_lengths, header_size),
         metadata: %{
-          duration: elapsed_time(frame_lengths, frame_duration)
+          duration: duration
         }
       }
 
       maybe_parse(
         rest,
+        pts + duration,
         input_delimitted?,
         processor,
         [packet | packets],
@@ -138,15 +149,15 @@ defmodule Membrane.Opus.Parser do
       )
     else
       {:error, :cont} ->
-        {:ok, data, packets |> Enum.reverse(), channels}
+        {:ok, data, pts, packets |> Enum.reverse(), channels}
 
       :error ->
         :error
     end
   end
 
-  defp maybe_parse(data, _input_delimitted?, _processor, packets, channels) do
-    {:ok, data, packets |> Enum.reverse(), channels}
+  defp maybe_parse(data, pts, _input_delimitted?, _processor, packets, channels) do
+    {:ok, data, pts, packets |> Enum.reverse(), channels}
   end
 
   @spec rest_of_packet(data :: binary, expected_packet_size :: pos_integer) ::
