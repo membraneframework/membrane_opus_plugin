@@ -128,12 +128,12 @@ defmodule Membrane.Opus.Parser do
          {:ok, header_size, frame_lengths, padding_size} <-
            FrameLengths.parse(frame_packing, data, input_delimitted?),
          expected_packet_size <- header_size + Enum.sum(frame_lengths) + padding_size,
-         {:ok, rest} <- rest_of_packet(data, expected_packet_size) do
+         {:ok, raw_packet, rest} <- rest_of_packet(data, expected_packet_size) do
       duration = elapsed_time(frame_lengths, frame_duration)
 
       packet = %Buffer{
         pts: pts,
-        payload: processor.process(data, frame_lengths, header_size),
+        payload: processor.process(raw_packet, frame_lengths, header_size),
         metadata: %{
           duration: duration
         }
@@ -161,11 +161,11 @@ defmodule Membrane.Opus.Parser do
   end
 
   @spec rest_of_packet(data :: binary, expected_packet_size :: pos_integer) ::
-          {:ok, rest :: binary} | {:error, :cont}
+          {:ok, raw_packet :: binary, rest :: binary} | {:error, :cont}
   defp rest_of_packet(data, expected_packet_size) do
     case data do
-      <<_raw_packet::binary-size(expected_packet_size), rest::binary>> ->
-        {:ok, rest}
+      <<raw_packet::binary-size(expected_packet_size), rest::binary>> ->
+        {:ok, raw_packet, rest}
 
       _ ->
         {:error, :cont}

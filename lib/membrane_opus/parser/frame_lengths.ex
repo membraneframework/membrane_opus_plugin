@@ -230,15 +230,18 @@ defmodule Membrane.Opus.Parser.FrameLengths do
 
   @spec calculate_frame_length(data :: binary, byte_offset :: non_neg_integer) ::
           {frame_length :: non_neg_integer, frame_length_encoding_size :: 1..2} | :error
+  defp calculate_frame_length(data, byte_offset) when byte_size(data) < byte_offset + 1,
+    do: :error
+
   defp calculate_frame_length(data, byte_offset) do
-    <<_head::binary-size(byte_offset), length::size(8), rest::binary>> = data
+    <<_head::binary-size(byte_offset), length, rest::binary>> = data
 
     cond do
       length < 252 ->
         {length, 1}
 
       byte_size(rest) >= 1 ->
-        <<overflow_length::size(8), _rest::binary>> = rest
+        <<overflow_length, _rest::binary>> = rest
 
         # https://tools.ietf.org/html/rfc6716#section-3.1
         {overflow_length * 4 + length, 2}
