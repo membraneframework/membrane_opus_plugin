@@ -55,5 +55,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     reference = File.read!(@reference_path)
     output = File.read!(@output_path)
     assert reference == output
+
+    Membrane.Pipeline.stop_and_terminate(pipeline_pid, blocking?: true)
   end
 end
