@@ -36,14 +36,11 @@ defmodule Membrane.Opus.Plugin.Mixfile do
   defp deps do
     [
       {:bunch, "~> 1.3"},
-      {:membrane_core,
-       github: "membraneframework/membrane_core",
-       branch: "add-timestamps-to-buffer",
-       override: true},
+      {:membrane_core, "~> 0.8.0", override: true},
       {:membrane_opus_format, "~> 0.3.0"},
-      {:membrane_caps_audio_raw, "~> 0.4.0"},
+      {:membrane_caps_audio_raw, "~> 0.5.0"},
       {:unifex, "~> 0.7.0"},
-      {:membrane_common_c, "~> 0.9.0"},
+      {:membrane_common_c, "~> 0.10.0"},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.23", only: :dev},
       {:membrane_file_plugin, "~> 0.6.0", only: :test}
