@@ -101,9 +101,6 @@ defmodule Membrane.Opus.Encoder do
       {:ok, {encoded_buffers, rest}} ->
         # something was encoded
         {{:ok, buffer: {:output, encoded_buffers}}, %{state | queue: rest}}
-
-      {:error, reason} ->
-        {{:error, reason}, state}
     end
   end
 

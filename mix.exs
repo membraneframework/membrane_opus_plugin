@@ -1,7 +1,7 @@
 defmodule Membrane.Opus.Plugin.Mixfile do
   use Mix.Project
 
-  @version "0.7.0"
+  @version "0.8.0"
   @github_url "https://github.com/membraneframework/membrane_opus_plugin"
 
   def project do
@@ -9,7 +9,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       app: :membrane_opus_plugin,
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       version: @version,
-      elixir: "~> 1.10",
+      elixir: "~> 1.12",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
