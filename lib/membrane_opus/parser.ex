@@ -14,8 +14,10 @@ defmodule Membrane.Opus.Parser do
   alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Opus.Util
 
+  @type delimitation_t :: :delimit | :undelimit | :keep
+
   def_options delimitation: [
-                spec: Delimitation.delimitation_t(),
+                spec: delimitation_t(),
                 default: :keep,
                 description: """
                 If input is delimitted? (as indicated by the `self_delimiting?`
