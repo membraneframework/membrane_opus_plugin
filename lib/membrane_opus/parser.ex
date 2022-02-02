@@ -169,7 +169,7 @@ defmodule Membrane.Opus.Parser do
       <<raw_packet::binary-size(expected_packet_size), rest::binary>> ->
         {:ok, raw_packet, rest}
 
-      _ ->
+      _otherwise ->
         {:error, :cont}
     end
   end

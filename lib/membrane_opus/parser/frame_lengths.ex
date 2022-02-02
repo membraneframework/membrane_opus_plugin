@@ -115,7 +115,7 @@ defmodule Membrane.Opus.Parser.FrameLengths do
         vbr_flag == 1
       )
     else
-      _ ->
+      _otherwise ->
         {:error, :cont}
     end
   end

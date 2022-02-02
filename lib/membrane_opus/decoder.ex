@@ -13,8 +13,8 @@ defmodule Membrane.Opus.Decoder do
   @avg_opus_packet_size 960
 
   def_options sample_rate: [
-                spec: 8000 | 12000 | 16000 | 24000 | 48000,
-                default: 48000,
+                spec: 8_000 | 12_000 | 16_000 | 24_000 | 48_000,
+                default: 48_000,
                 description: """
                 Sample rate to decode at. Note: Opus is able to decode any stream
                 at any supported sample rate. 48 kHz is recommended. For details,
