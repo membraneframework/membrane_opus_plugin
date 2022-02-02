@@ -105,26 +105,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
     {:ok, pipeline} = Pipeline.start_link(options)
     Pipeline.play(pipeline)
 
-    assert_start_of_stream(pipeline, :sink)
-
-    @fixtures
-    |> Enum.each(fn fixture ->
-      expected_caps = %Opus{channels: fixture.channels, self_delimiting?: false}
-      assert_sink_caps(pipeline, :sink, ^expected_caps)
-
-      expected_buffer = %Buffer{
-        pts: fixture.pts,
-        payload: fixture.normal,
-        metadata: %{duration: fixture.duration}
-      }
-
-      assert_sink_buffer(pipeline, :sink, ^expected_buffer)
-    end)
-
-    assert_end_of_stream(pipeline, :sink)
-    refute_sink_buffer(pipeline, :sink, _, 0)
-
-    Pipeline.stop_and_terminate(pipeline, blocking?: true)
+    do_test(pipeline, false)
   end
 
   test "non-self-delimiting input, self-delimiting output" do
@@ -143,26 +124,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
     {:ok, pipeline} = Pipeline.start_link(options)
     Pipeline.play(pipeline)
 
-    assert_start_of_stream(pipeline, :sink)
-
-    @fixtures
-    |> Enum.each(fn fixture ->
-      expected_caps = %Opus{channels: fixture.channels, self_delimiting?: true}
-      assert_sink_caps(pipeline, :sink, ^expected_caps)
-
-      expected_buffer = %Buffer{
-        pts: fixture.pts,
-        payload: fixture.delimited,
-        metadata: %{duration: fixture.duration}
-      }
-
-      assert_sink_buffer(pipeline, :sink, ^expected_buffer)
-    end)
-
-    assert_end_of_stream(pipeline, :sink)
-    refute_sink_buffer(pipeline, :sink, _, 0)
-
-    Pipeline.stop_and_terminate(pipeline, blocking?: true)
+    do_test(pipeline, true)
   end
 
   test "self-delimiting input and output" do
@@ -181,26 +143,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
     {:ok, pipeline} = Pipeline.start_link(options)
     Pipeline.play(pipeline)
 
-    assert_start_of_stream(pipeline, :sink)
-
-    @fixtures
-    |> Enum.each(fn fixture ->
-      expected_caps = %Opus{channels: fixture.channels, self_delimiting?: true}
-      assert_sink_caps(pipeline, :sink, ^expected_caps)
-
-      expected_buffer = %Buffer{
-        pts: fixture.pts,
-        payload: fixture.delimited,
-        metadata: %{duration: fixture.duration}
-      }
-
-      assert_sink_buffer(pipeline, :sink, ^expected_buffer)
-    end)
-
-    assert_end_of_stream(pipeline, :sink)
-    refute_sink_buffer(pipeline, :sink, _, 0)
-
-    Pipeline.stop_and_terminate(pipeline, blocking?: true)
+    do_test(pipeline, true)
   end
 
   test "self-delimiting input, non-self-delimiting output" do
@@ -219,21 +162,39 @@ defmodule Membrane.Opus.Parser.ParserTest do
     {:ok, pipeline} = Pipeline.start_link(options)
     Pipeline.play(pipeline)
 
+    do_test(pipeline, false)
+  end
+
+  defp do_test(pipeline, self_delimiting?) do
     assert_start_of_stream(pipeline, :sink)
 
     @fixtures
     |> Enum.each(fn fixture ->
-      expected_caps = %Opus{channels: fixture.channels, self_delimiting?: false}
-      assert_sink_caps(pipeline, :sink, ^expected_caps)
-
       expected_buffer = %Buffer{
         pts: fixture.pts,
-        payload: fixture.normal,
+        payload: if(self_delimiting?, do: fixture.delimited, else: fixture.normal),
         metadata: %{duration: fixture.duration}
       }
 
-      assert_sink_buffer(pipeline, :sink, ^expected_buffer)
+      assert_sink_buffer(pipeline, :sink, ^expected_buffer, 4000)
     end)
+
+    refute_sink_buffer(pipeline, :sink, 0)
+
+    @fixtures
+    |> Enum.map(& &1.channels)
+    |> then(&Enum.zip([nil | &1], &1))
+    |> Enum.reject(fn {a, b} -> a == b end)
+    |> Enum.each(fn {_old_channels, new_channels} ->
+      assert_sink_caps(
+        pipeline,
+        :sink,
+        %Opus{channels: new_channels, self_delimiting?: self_delimiting?},
+        0
+      )
+    end)
+
+    refute_sink_caps(pipeline, :sink, 0)
 
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)

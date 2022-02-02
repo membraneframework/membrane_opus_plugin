@@ -76,7 +76,7 @@ defmodule Membrane.Opus.Parser do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
+  def handle_process(:input, %Buffer{payload: data}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
@@ -87,19 +87,21 @@ defmodule Membrane.Opus.Parser do
            delimitation_processor
          ) do
       {:ok, buffer, pts, packets, channels} ->
+        caps = %Opus{
+          self_delimiting?: self_delimiting?,
+          channels: channels
+        }
+
         packet_actions =
-          if length(packets) > 0 do
-            [
-              caps:
-                {:output,
-                 %Opus{
-                   channels: channels,
-                   self_delimiting?: self_delimiting?
-                 }},
-              buffer: {:output, packets}
-            ]
-          else
-            []
+          cond do
+            length(packets) > 0 and caps != ctx.pads.output.caps ->
+              [caps: {:output, caps}, buffer: {:output, packets}]
+
+            length(packets) > 0 ->
+              [buffer: {:output, packets}]
+
+            true ->
+              []
           end
 
         {{:ok, packet_actions ++ [redemand: :output]}, %{state | buffer: buffer, pts: pts}}

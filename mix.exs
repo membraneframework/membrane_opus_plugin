@@ -42,7 +42,8 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       {:unifex, "~> 0.7.0"},
       {:membrane_common_c, "~> 0.10.0"},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
-      {:ex_doc, "~> 0.23", only: :dev},
+      {:ex_doc, "~> 0.23", only: :dev, runtime: false},
+      {:credo, ">= 0.0.0", only: :dev, runtime: false},
       {:membrane_file_plugin, "~> 0.7.0", only: :test}
     ]
   end
