@@ -14,8 +14,10 @@ defmodule Membrane.Opus.Parser do
   alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Opus.Util
 
+  @type delimitation_t :: :delimit | :undelimit | :keep
+
   def_options delimitation: [
-                spec: Delimitation.delimitation_t(),
+                spec: delimitation_t(),
                 default: :keep,
                 description: """
                 If input is delimitted? (as indicated by the `self_delimiting?`
@@ -76,7 +78,7 @@ defmodule Membrane.Opus.Parser do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
+  def handle_process(:input, %Buffer{payload: data}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
@@ -87,19 +89,23 @@ defmodule Membrane.Opus.Parser do
            delimitation_processor
          ) do
       {:ok, buffer, pts, packets, channels} ->
+        caps = %Opus{
+          self_delimiting?: self_delimiting?,
+          channels: channels
+        }
+
+        packets_len = length(packets)
+
         packet_actions =
-          if length(packets) > 0 do
-            [
-              caps:
-                {:output,
-                 %Opus{
-                   channels: channels,
-                   self_delimiting?: self_delimiting?
-                 }},
-              buffer: {:output, packets}
-            ]
-          else
-            []
+          cond do
+            packets_len > 0 and caps != ctx.pads.output.caps ->
+              [caps: {:output, caps}, buffer: {:output, packets}]
+
+            packets_len > 0 ->
+              [buffer: {:output, packets}]
+
+            true ->
+              []
           end
 
         {{:ok, packet_actions ++ [redemand: :output]}, %{state | buffer: buffer, pts: pts}}
@@ -167,7 +173,7 @@ defmodule Membrane.Opus.Parser do
       <<raw_packet::binary-size(expected_packet_size), rest::binary>> ->
         {:ok, raw_packet, rest}
 
-      _ ->
+      _otherwise ->
         {:error, :cont}
     end
   end

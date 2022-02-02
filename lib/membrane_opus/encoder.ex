@@ -141,7 +141,7 @@ defmodule Membrane.Opus.Encoder do
       :voip -> {:ok, 2048}
       :audio -> {:ok, 2049}
       :low_delay -> {:ok, 2051}
-      _ -> {:error, "Invalid application"}
+      _invalid -> {:error, "Invalid application"}
     end
   end
 
@@ -149,10 +149,10 @@ defmodule Membrane.Opus.Encoder do
     {:ok, sample_rate}
   end
 
-  defp validate_sample_rate(_), do: {:error, "Invalid sample rate"}
+  defp validate_sample_rate(_invalid_sr), do: {:error, "Invalid sample rate"}
 
   defp validate_channels(channels) when channels in @allowed_channels, do: {:ok, channels}
-  defp validate_channels(_), do: {:error, "Invalid channels"}
+  defp validate_channels(_invalid_channels), do: {:error, "Invalid channels"}
 
   defp frame_size(state) do
     # 20 milliseconds

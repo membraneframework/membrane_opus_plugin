@@ -1,11 +1,12 @@
 defmodule Membrane.Opus.Encoder.EncoderTest do
   use ExUnit.Case, async: true
 
+  import Membrane.ParentSpec
+  import Membrane.Testing.Assertions
+
   alias Membrane.Opus.Encoder
   alias Membrane.Caps.Audio.Raw
-  import Membrane.Testing.Assertions
   alias Membrane.Testing
-  import Membrane.ParentSpec
 
   @input_path "test/fixtures/raw_packets"
   @output_path "test/fixtures/encoder_output"

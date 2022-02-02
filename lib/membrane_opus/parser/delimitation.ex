@@ -2,11 +2,10 @@ defmodule Membrane.Opus.Parser.Delimitation do
   @moduledoc false
   # Helper module for delimiting or undelimiting packets
 
-  @type delimitation_t :: :delimit | :undelimit | :keep
   @type processor_t :: __MODULE__.Undelimiter | __MODULE__.Delimiter | __MODULE__.Keeper
 
   @spec get_processor(
-          delimitation :: delimitation_t(),
+          delimitation :: Membrane.Parser.Opus.delimitation_t(),
           self_delimiting? :: boolean
         ) ::
           {processor :: processor_t, self_delimiting? :: boolean}
