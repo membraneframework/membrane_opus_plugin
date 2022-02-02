@@ -26,6 +26,8 @@ defmodule Membrane.Opus.Util do
            bandwidth :: :narrow | :medium | :wide | :super_wide | :full,
            frame_duration :: Membrane.Time.non_neg_t()}
           | :error
+  # Credo CC check thinks that this function is super complex, but for an actual human it isn't.
+  # Therefore, it makes sense to disable the check for this function
   # credo:disable-for-next-line
   def parse_configuration(configuration_number) do
     case configuration_number do
