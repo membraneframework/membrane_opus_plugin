@@ -94,12 +94,14 @@ defmodule Membrane.Opus.Parser do
           channels: channels
         }
 
+        packets_len = length(packets)
+
         packet_actions =
           cond do
-            length(packets) > 0 and caps != ctx.pads.output.caps ->
+            packets_len > 0 and caps != ctx.pads.output.caps ->
               [caps: {:output, caps}, buffer: {:output, packets}]
 
-            length(packets) > 0 ->
+            packets_len > 0 ->
               [buffer: {:output, packets}]
 
             true ->
