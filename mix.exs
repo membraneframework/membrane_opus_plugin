@@ -38,7 +38,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       {:bunch, "~> 1.3"},
       {:membrane_core, "~> 0.9.0"},
       {:membrane_opus_format, "~> 0.3.0"},
-      {:membrane_caps_audio_raw, "~> 0.6.0"},
+      {:membrane_raw_audio_format, "~> 0.8.0"},
       {:unifex, "~> 0.7.0"},
       {:membrane_common_c, "~> 0.11.0"},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},

@@ -8,7 +8,7 @@ defmodule Membrane.Opus.Encoder do
 
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Caps.Audio.Raw
+  alias Membrane.RawAudio
   alias Membrane.Caps.Matcher
   alias Membrane.Opus
 
@@ -26,7 +26,7 @@ defmodule Membrane.Opus.Encoder do
                 """
               ],
               input_caps: [
-                spec: Raw.t(),
+                spec: RawAudio.t(),
                 type: :caps,
                 default: nil,
                 description: """
@@ -38,8 +38,8 @@ defmodule Membrane.Opus.Encoder do
     demand_unit: :bytes,
     demand_mode: :auto,
     caps:
-      {Raw,
-       format: :s16le,
+      {RawAudio,
+       sample_format: :s16le,
        channels: Matcher.one_of(@allowed_channels),
        sample_rate: Matcher.one_of(@allowed_sample_rates)}
 
@@ -60,7 +60,7 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
-    case state |> mk_native do
+    case mk_native(state) do
       {:ok, native} ->
         {:ok, %{state | native: native}}
 
@@ -73,6 +73,11 @@ defmodule Membrane.Opus.Encoder do
   def handle_caps(:input, caps, _ctx, %{input_caps: nil} = state) do
     output_caps = %Opus{channels: caps.channels}
     {{:ok, caps: {:output, output_caps}}, %{state | input_caps: caps}}
+  end
+
+  @impl true
+  def handle_caps(:input, caps, _ctx, %{input_caps: caps} = state) do
+    {:ok, state}
   end
 
   @impl true
@@ -151,7 +156,7 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp frame_size_in_bytes(state) do
-    Raw.frames_to_bytes(frame_size(state), state.input_caps)
+    RawAudio.frames_to_bytes(frame_size(state), state.input_caps)
   end
 
   defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames \\ [])

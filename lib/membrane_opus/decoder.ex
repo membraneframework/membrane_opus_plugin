@@ -7,7 +7,7 @@ defmodule Membrane.Opus.Decoder do
 
   alias __MODULE__.Native
   alias Membrane.{Buffer, Opus, RemoteStream}
-  alias Membrane.Caps.Audio.Raw
+  alias Membrane.RawAudio
   alias Membrane.Opus.Util
 
   def_options sample_rate: [
@@ -28,7 +28,7 @@ defmodule Membrane.Opus.Decoder do
       {RemoteStream, type: :packetized, content_format: one_of([Opus, nil])}
     ]
 
-  def_output_pad :output, caps: {Raw, format: :s16le}, demand_mode: :auto
+  def_output_pad :output, caps: {RawAudio, sample_format: :s16le}, demand_mode: :auto
 
   @impl true
   def handle_init(%__MODULE__{} = options) do
@@ -73,7 +73,7 @@ defmodule Membrane.Opus.Decoder do
 
   defp maybe_make_native(channels, state) do
     native = Native.create(state.sample_rate, channels)
-    caps = %Raw{format: :s16le, channels: channels, sample_rate: state.sample_rate}
+    caps = %RawAudio{sample_format: :s16le, channels: channels, sample_rate: state.sample_rate}
     {[caps: {:output, caps}], %{state | native: native, channels: channels}}
   end
 end
