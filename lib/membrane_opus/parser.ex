@@ -46,12 +46,13 @@ defmodule Membrane.Opus.Parser do
 
   def_input_pad :input,
     demand_unit: :buffers,
+    demand_mode: :auto,
     caps: [
       Opus,
       {RemoteStream, type: :packetized, content_format: one_of([Opus, nil])}
     ]
 
-  def_output_pad :output, caps: Opus
+  def_output_pad :output, caps: Opus, demand_mode: :auto
 
   @impl true
   def handle_init(%__MODULE__{} = options) do
@@ -70,11 +71,6 @@ defmodule Membrane.Opus.Parser do
   def handle_caps(:input, _caps, _ctx, state) do
     # ignore caps, they will be sent in handle_process
     {:ok, state}
-  end
-
-  @impl true
-  def handle_demand(:output, bufs, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, bufs}}, state}
   end
 
   @impl true
@@ -108,7 +104,7 @@ defmodule Membrane.Opus.Parser do
               []
           end
 
-        {{:ok, packet_actions ++ [redemand: :output]}, %{state | buffer: buffer, pts: pts}}
+        {{:ok, packet_actions}, %{state | buffer: buffer, pts: pts}}
 
       :error ->
         {{:error, "An error occured in parsing"}, state}

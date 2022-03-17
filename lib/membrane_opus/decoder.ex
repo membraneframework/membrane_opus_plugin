@@ -10,8 +10,6 @@ defmodule Membrane.Opus.Decoder do
   alias Membrane.Caps.Audio.Raw
   alias Membrane.Opus.Util
 
-  @avg_opus_packet_size 960
-
   def_options sample_rate: [
                 spec: 8_000 | 12_000 | 16_000 | 24_000 | 48_000,
                 default: 48_000,
@@ -24,12 +22,13 @@ defmodule Membrane.Opus.Decoder do
 
   def_input_pad :input,
     demand_unit: :buffers,
+    demand_mode: :auto,
     caps: [
       {Opus, self_delimiting?: false},
       {RemoteStream, type: :packetized, content_format: one_of([Opus, nil])}
     ]
 
-  def_output_pad :output, caps: {Raw, format: :s16le}
+  def_output_pad :output, caps: {Raw, format: :s16le}, demand_mode: :auto
 
   @impl true
   def handle_init(%__MODULE__{} = options) do
@@ -50,16 +49,6 @@ defmodule Membrane.Opus.Decoder do
   @impl true
   def handle_caps(:input, _caps, _ctx, state) do
     {:ok, state}
-  end
-
-  @impl true
-  def handle_demand(:output, size, :bytes, _ctx, state) do
-    {{:ok, demand: {:input, div(size, @avg_opus_packet_size) + 1}}, state}
-  end
-
-  @impl true
-  def handle_demand(:output, size, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, size}}, state}
   end
 
   @impl true
