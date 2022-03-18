@@ -45,7 +45,7 @@ Encode sample raw file and save it as opus file:
 defmodule Membrane.ReleaseTest.Pipeline do
   use Membrane.Pipeline
 
-  alias Membrane.Caps.Audio.Raw
+  alias Membrane.RawAudio
 
   @impl true
   def handle_init(_) do
@@ -55,7 +55,7 @@ defmodule Membrane.ReleaseTest.Pipeline do
       },
       encoder: %Membrane.Opus.Encoder{
         application: :audio,
-        input_caps: %Raw{
+        input_caps: %RawAudio{
           channels: 2,
           format: :s16le,
           sample_rate: 48_000
