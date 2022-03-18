@@ -36,13 +36,14 @@ defmodule Membrane.Opus.Encoder do
 
   def_input_pad :input,
     demand_unit: :bytes,
+    demand_mode: :auto,
     caps:
       {Raw,
        format: :s16le,
        channels: Matcher.one_of(@allowed_channels),
        sample_rate: Matcher.one_of(@allowed_sample_rates)}
 
-  def_output_pad :output, caps: {Opus, self_delimiting?: false}
+  def_output_pad :output, caps: {Opus, self_delimiting?: false}, demand_mode: :auto
 
   @impl true
   def handle_init(%__MODULE__{} = options) do
@@ -82,21 +83,11 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_demand(:output, size, :bytes, _ctx, state) do
-    {{:ok, demand: {:input, size}}, state}
-  end
-
-  @impl true
-  def handle_demand(:output, bufs, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, frame_size_in_bytes(state) * bufs}}, state}
-  end
-
-  @impl true
   def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
     case encode_buffer(state.queue <> data, state, frame_size_in_bytes(state)) do
       {:ok, {[], rest}} ->
         # nothing was encoded
-        {{:ok, redemand: :output}, %{state | queue: rest}}
+        {:ok, %{state | queue: rest}}
 
       {:ok, {encoded_buffers, rest}} ->
         # something was encoded
