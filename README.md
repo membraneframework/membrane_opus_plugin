@@ -62,7 +62,7 @@ defmodule Membrane.ReleaseTest.Pipeline do
           sample_rate: 48_000
         }
       },
-      parser: Membrane.Opus.Parser,
+      parser: %Membrane.Opus.Parser{delimitation: :delimit},
       sink: %Membrane.File.Sink{
         location: "/tmp/output.opus"
       }
