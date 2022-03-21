@@ -40,7 +40,8 @@ brew install opus
 ## Usage example
 
 ### Encoder 
-Encode sample raw file and save it as opus file: 
+Encode sample raw file and save it as an opus file:
+
 ```elixir
 defmodule Membrane.ReleaseTest.Pipeline do
   use Membrane.Pipeline
@@ -61,7 +62,7 @@ defmodule Membrane.ReleaseTest.Pipeline do
           sample_rate: 48_000
         }
       },
-      serializer: Membrane.Opus.Serializer,
+      parser: %Membrane.Opus.Parser{delimitation: :delimit},
       sink: %Membrane.File.Sink{
         location: "/tmp/output.opus"
       }
@@ -70,7 +71,7 @@ defmodule Membrane.ReleaseTest.Pipeline do
     links = [
       link(:source)
       |> to(:encoder)
-      |> to(:serializer)
+      |> to(:parser)
       |> to(:sink)
     ]
 
@@ -78,6 +79,10 @@ defmodule Membrane.ReleaseTest.Pipeline do
   end
 end
 ```
+
+Opus audio generally needs to be packaged in an [Ogg container](https://xiph.org/ogg/) in order to be played by a
+media player. See `Membrane.Ogg.Payloader` in the [Membrane Ogg Plugin](https://github.com/membraneframework/membrane_ogg_plugin).
+
 
 ### Decoder
 Decode sample opus file and save it as raw file: 
