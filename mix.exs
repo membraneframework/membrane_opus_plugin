@@ -51,7 +51,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
   defp package do
     [
       maintainers: ["Membrane Team"],
-      licenses: ["Apache 2.0"],
+      licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => @github_url,
         "Membrane Framework Homepage" => "https://membraneframework.org"
@@ -63,6 +63,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
   defp docs do
     [
       main: "readme",
+      formatters: ["html"],
       extras: ["README.md", "LICENSE"],
       source_ref: "v#{@version}",
       nest_modules_by_prefix: [Membrane.Opus]
