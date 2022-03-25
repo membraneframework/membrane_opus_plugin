@@ -5,7 +5,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   import Membrane.Testing.Assertions
 
   alias Membrane.Opus.Encoder
-  alias Membrane.Caps.Audio.Raw
+  alias Membrane.RawAudio
   alias Membrane.Testing
 
   @input_path "test/fixtures/raw_packets"
@@ -21,9 +21,9 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
       },
       encoder: %Encoder{
         application: :audio,
-        input_caps: %Raw{
+        input_caps: %RawAudio{
           channels: 2,
-          format: :s16le,
+          sample_format: :s16le,
           sample_rate: 48_000
         }
       },
