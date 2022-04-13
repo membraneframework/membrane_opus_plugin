@@ -11,14 +11,14 @@ defmodule Membrane.Opus.BundlexProject do
     [
       decoder: [
         sources: ["decoder.c"],
-        libs: ["opus"],
+        pkg_configs: ["opus"],
         interface: :nif,
         preprocessor: Unifex
       ],
       encoder: [
         deps: [membrane_common_c: :membrane],
         sources: ["encoder.c"],
-        libs: ["opus"],
+        pkg_configs: ["opus"],
         interface: :nif,
         preprocessor: Unifex
       ]
