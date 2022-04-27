@@ -1,7 +1,36 @@
 defmodule Membrane.Opus.Encoder.EncoderTest do
+  defmodule CapsProvider do
+    @moduledoc false
+    use Membrane.Filter
+
+    def_options input_caps: [
+                  description:
+                    "Caps which will be sent on the :output pad once the :input pad receives any caps",
+                  type: :caps
+                ]
+
+    def_output_pad :output, demand_mode: :auto, caps: :any
+
+    def_input_pad :input, demand_unit: :bytes, demand_mode: :auto, caps: :any
+
+    @impl true
+    def handle_init(opts) do
+      {:ok, %{caps: opts.input_caps}}
+    end
+
+    @impl true
+    def handle_caps(:input, _caps, _ctx, state) do
+      {{:ok, caps: {:output, state.caps}}, state}
+    end
+
+    @impl true
+    def handle_process(:input, buffer, _ctx, state) do
+      {{:ok, buffer: {:output, buffer}}, state}
+    end
+  end
+
   use ExUnit.Case, async: true
 
-  import Membrane.ParentSpec
   import Membrane.Testing.Assertions
 
   alias Membrane.Opus.Encoder
@@ -19,6 +48,13 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
       source: %Membrane.File.Source{
         location: @input_path
       },
+      caps_provider: %CapsProvider{
+        input_caps: %RawAudio{
+          channels: 2,
+          sample_format: :s16le,
+          sample_rate: 48_000
+        }
+      },
       encoder: %Encoder{
         application: :audio,
         input_caps: %RawAudio{
@@ -32,16 +68,9 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
       }
     ]
 
-    links = [
-      link(:source)
-      |> to(:encoder)
-      |> to(:sink)
-    ]
-
     {:ok, pipeline_pid} =
       Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-        elements: elements,
-        links: links
+        elements: elements
       })
 
     {:ok, %{pipeline_pid: pipeline_pid}}
