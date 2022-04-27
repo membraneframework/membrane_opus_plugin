@@ -1,4 +1,12 @@
 defmodule Membrane.Opus.Encoder.EncoderTest do
+  use ExUnit.Case, async: true
+
+  import Membrane.Testing.Assertions
+
+  alias Membrane.Opus.Encoder
+  alias Membrane.RawAudio
+  alias Membrane.Testing
+
   defmodule CapsProvider do
     @moduledoc false
     use Membrane.Filter
@@ -28,14 +36,6 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
       {{:ok, buffer: {:output, buffer}}, state}
     end
   end
-
-  use ExUnit.Case, async: true
-
-  import Membrane.Testing.Assertions
-
-  alias Membrane.Opus.Encoder
-  alias Membrane.RawAudio
-  alias Membrane.Testing
 
   @input_path "test/fixtures/raw_packets"
   @output_path "test/fixtures/encoder_output"
