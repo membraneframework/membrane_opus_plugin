@@ -44,7 +44,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:credo, ">= 0.0.0", only: :dev, runtime: false},
-      {:membrane_file_plugin, "~> 0.9.0", only: :test}
+      {:membrane_file_plugin, "~> 0.12.0", only: :test}
     ]
   end
 

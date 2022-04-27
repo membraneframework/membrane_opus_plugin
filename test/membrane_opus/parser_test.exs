@@ -103,7 +103,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     }
 
     {:ok, pipeline} = Pipeline.start_link(options)
-    Pipeline.play(pipeline)
 
     do_test(pipeline, false)
   end
@@ -122,7 +121,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     }
 
     {:ok, pipeline} = Pipeline.start_link(options)
-    Pipeline.play(pipeline)
 
     do_test(pipeline, true)
   end
@@ -141,7 +139,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     }
 
     {:ok, pipeline} = Pipeline.start_link(options)
-    Pipeline.play(pipeline)
 
     do_test(pipeline, true)
   end
@@ -160,7 +157,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     }
 
     {:ok, pipeline} = Pipeline.start_link(options)
-    Pipeline.play(pipeline)
 
     do_test(pipeline, false)
   end
@@ -189,7 +185,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       assert_sink_caps(
         pipeline,
         :sink,
-        %Opus{channels: new_channels, self_delimiting?: self_delimiting?},
+        %Opus{channels: ^new_channels, self_delimiting?: ^self_delimiting?},
         0
       )
     end)
@@ -199,6 +195,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)
 
-    Pipeline.stop_and_terminate(pipeline, blocking?: true)
+    Pipeline.terminate(pipeline, blocking?: true)
   end
 end

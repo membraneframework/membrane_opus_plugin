@@ -49,7 +49,6 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
 
   test "encoded output matches reference", context do
     %{pipeline_pid: pipeline_pid} = context
-    Membrane.Pipeline.play(pipeline_pid)
     assert_start_of_stream(pipeline_pid, :sink)
     assert_end_of_stream(pipeline_pid, :sink, _, 5000)
 
@@ -57,6 +56,6 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     output = File.read!(@output_path)
     assert reference == output
 
-    Membrane.Pipeline.stop_and_terminate(pipeline_pid, blocking?: true)
+    Membrane.Pipeline.terminate(pipeline_pid, blocking?: true)
   end
 end

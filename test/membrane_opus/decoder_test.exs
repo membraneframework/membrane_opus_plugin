@@ -30,7 +30,6 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
         links: links
       })
 
-    Membrane.Pipeline.play(pipeline)
     assert_start_of_stream(pipeline, :sink)
 
     Enum.each(@sample_raw, fn expected_payload ->
@@ -41,6 +40,6 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)
 
-    Membrane.Pipeline.stop_and_terminate(pipeline, blocking?: true)
+    Membrane.Pipeline.terminate(pipeline, blocking?: true)
   end
 end

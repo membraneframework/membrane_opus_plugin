@@ -37,11 +37,13 @@ defmodule Membrane.Opus.Encoder do
   def_input_pad :input,
     demand_unit: :bytes,
     demand_mode: :auto,
-    caps:
+    caps: [
       {RawAudio,
        sample_format: :s16le,
        channels: Matcher.one_of(@allowed_channels),
-       sample_rate: Matcher.one_of(@allowed_sample_rates)}
+       sample_rate: Matcher.one_of(@allowed_sample_rates)},
+      Membrane.RemoteStream
+    ]
 
   def_output_pad :output, caps: {Opus, self_delimiting?: false}, demand_mode: :auto
 
