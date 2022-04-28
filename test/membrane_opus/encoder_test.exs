@@ -7,36 +7,6 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   alias Membrane.RawAudio
   alias Membrane.Testing
 
-  defmodule CapsProvider do
-    @moduledoc false
-    use Membrane.Filter
-
-    def_options input_caps: [
-                  description:
-                    "Caps which will be sent on the :output pad once the :input pad receives any caps",
-                  type: :caps
-                ]
-
-    def_output_pad :output, demand_mode: :auto, caps: :any
-
-    def_input_pad :input, demand_unit: :bytes, demand_mode: :auto, caps: :any
-
-    @impl true
-    def handle_init(opts) do
-      {:ok, %{caps: opts.input_caps}}
-    end
-
-    @impl true
-    def handle_caps(:input, _caps, _ctx, state) do
-      {{:ok, caps: {:output, state.caps}}, state}
-    end
-
-    @impl true
-    def handle_process(:input, buffer, _ctx, state) do
-      {{:ok, buffer: {:output, buffer}}, state}
-    end
-  end
-
   @input_path "test/fixtures/raw_packets"
   @output_path "test/fixtures/encoder_output"
   @reference_path "test/fixtures/encoder_output_reference"
@@ -47,13 +17,6 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     elements = [
       source: %Membrane.File.Source{
         location: @input_path
-      },
-      caps_provider: %CapsProvider{
-        input_caps: %RawAudio{
-          channels: 2,
-          sample_format: :s16le,
-          sample_rate: 48_000
-        }
       },
       encoder: %Encoder{
         application: :audio,

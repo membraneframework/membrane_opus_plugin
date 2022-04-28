@@ -37,11 +37,13 @@ defmodule Membrane.Opus.Encoder do
   def_input_pad :input,
     demand_unit: :bytes,
     demand_mode: :auto,
-    caps:
+    caps: [
       {RawAudio,
        sample_format: :s16le,
        channels: Matcher.one_of(@allowed_channels),
-       sample_rate: Matcher.one_of(@allowed_sample_rates)}
+       sample_rate: Matcher.one_of(@allowed_sample_rates)},
+      Membrane.RemoteStream
+    ]
 
   def_output_pad :output, caps: {Opus, self_delimiting?: false}, demand_mode: :auto
 
@@ -76,13 +78,18 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_caps(:input, caps, _ctx, %{input_caps: nil} = state) do
+  def handle_caps(:input, %RawAudio{} = caps, _ctx, %{input_caps: nil} = state) do
     output_caps = %Opus{channels: caps.channels}
     {{:ok, caps: {:output, output_caps}}, %{state | input_caps: caps}}
   end
 
   @impl true
   def handle_caps(:input, caps, _ctx, %{input_caps: caps} = state) do
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_caps(:input, %Membrane.RemoteStream{} = _caps, _ctx, state) do
     {:ok, state}
   end
 
