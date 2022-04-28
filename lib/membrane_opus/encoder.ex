@@ -77,13 +77,13 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_caps(:input, caps, _ctx, %{input_caps: nil} = state) do
-    {:ok, %{state | input_caps: caps}}
+    output_caps = %Opus{channels: caps.channels}
+    {{:ok, caps: {:output, output_caps}}, %{state | input_caps: caps}}
   end
 
   @impl true
-  def handle_caps(:input, caps, _ctx, %{input_caps: caps} = state) do
-    output_caps = %Opus{channels: caps.channels}
-    {{:ok, caps: {:output, output_caps}}, state}
+  def handle_caps(:input, _caps, _ctx, %{input_caps: _input_caps} = state) do
+    {:ok, state}
   end
 
   @impl true
