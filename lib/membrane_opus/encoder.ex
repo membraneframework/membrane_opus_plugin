@@ -84,6 +84,13 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
+  def handle_caps(:input, %Membrane.RemoteStream{} = _caps, _ctx, %{input_caps: nil} = _state) do
+    raise """
+    You need to specify `input_caps` in options if `Membrane.RemoteStream` will be received on the `:input` pad
+    """
+  end
+
+  @impl true
   def handle_caps(:input, caps, _ctx, %{input_caps: caps} = state) do
     {:ok, state}
   end
