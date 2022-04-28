@@ -82,7 +82,7 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_caps(:input, _caps, _ctx, %{input_caps: _input_caps} = state) do
+  def handle_caps(:input, caps, _ctx, %{input_caps: caps} = state) do
     {:ok, state}
   end
 
