@@ -70,9 +70,14 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_caps(:input, caps, _ctx, %{input_caps: nil} = state) do
+  def handle_prepared_to_playing(_ctx, %{input_caps: caps} = state) when not is_nil(caps) do
     output_caps = %Opus{channels: caps.channels}
-    {{:ok, caps: {:output, output_caps}}, %{state | input_caps: caps}}
+    {{:ok, caps: {:output, output_caps}}, state}
+  end
+
+  @impl true
+  def handle_caps(:input, caps, _ctx, %{input_caps: nil} = state) do
+    {:ok, %{state | input_caps: caps}}
   end
 
   @impl true
