@@ -49,7 +49,7 @@ defmodule Membrane.Opus.Parser do
     demand_mode: :auto,
     caps: [
       Opus,
-      {RemoteStream, type: :packetized, content_format: one_of([Opus, nil])}
+      {RemoteStream, type: :bytestream, content_format: one_of([Opus, nil])}
     ]
 
   def_output_pad :output, caps: Opus, demand_mode: :auto
