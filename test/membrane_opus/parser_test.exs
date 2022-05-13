@@ -4,10 +4,10 @@ defmodule Membrane.Opus.Parser.ParserTest do
   import Membrane.Time
   import Membrane.Testing.Assertions
 
-  alias Membrane.RemoteStream
   alias Membrane.Opus.Parser
-  alias Membrane.{Opus, Buffer}
-  alias Membrane.Testing.{Source, Sink, Pipeline}
+  alias Membrane.RemoteStream
+  alias Membrane.{Buffer, Opus}
+  alias Membrane.Testing.{Pipeline, Sink, Source}
 
   @fixtures [
     %{
@@ -88,7 +88,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     }
   ]
 
-  @tag :debug
   test "non-self-delimiting input and output" do
     inputs =
       @fixtures
@@ -96,7 +95,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     options = %Pipeline.Options{
       elements: [
-        source: %Source{output: inputs, caps: %RemoteStream{type: :packetized}},
+        source: %Source{output: inputs, caps: %RemoteStream{type: :bytestream}},
         parser: Parser,
         sink: Sink
       ]
@@ -114,7 +113,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     options = %Pipeline.Options{
       elements: [
-        source: %Source{output: inputs, caps: %RemoteStream{type: :packetized}},
+        source: %Source{output: inputs, caps: %RemoteStream{type: :bytestream}},
         parser: %Parser{delimitation: :delimit},
         sink: Sink
       ]
@@ -132,7 +131,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     options = %Pipeline.Options{
       elements: [
-        source: %Source{output: inputs, caps: %RemoteStream{type: :packetized}},
+        source: %Source{output: inputs, caps: %RemoteStream{type: :bytestream}},
         parser: %Parser{input_delimitted?: true},
         sink: Sink
       ]
@@ -150,7 +149,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     options = %Pipeline.Options{
       elements: [
-        source: %Source{output: inputs, caps: %RemoteStream{type: :packetized}},
+        source: %Source{output: inputs, caps: %RemoteStream{type: :bytestream}},
         parser: %Parser{delimitation: :undelimit, input_delimitted?: true},
         sink: Sink
       ]

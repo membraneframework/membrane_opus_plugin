@@ -5,7 +5,7 @@ defmodule Membrane.Opus.Parser.Delimitation do
   @type processor_t :: __MODULE__.Undelimiter | __MODULE__.Delimiter | __MODULE__.Keeper
 
   @spec get_processor(
-          delimitation :: Membrane.Parser.Opus.delimitation_t(),
+          delimitation :: Membrane.Opus.Parser.delimitation_t(),
           self_delimiting? :: boolean
         ) ::
           {processor :: processor_t, self_delimiting? :: boolean}
