@@ -4,10 +4,10 @@ defmodule Membrane.Opus.Parser.ParserTest do
   import Membrane.Time
   import Membrane.Testing.Assertions
 
-  alias Membrane.RemoteStream
   alias Membrane.Opus.Parser
-  alias Membrane.{Opus, Buffer}
-  alias Membrane.Testing.{Source, Sink, Pipeline}
+  alias Membrane.RemoteStream
+  alias Membrane.{Buffer, Opus}
+  alias Membrane.Testing.{Pipeline, Sink, Source}
 
   @fixtures [
     %{

@@ -7,12 +7,13 @@ defmodule Membrane.Opus.Plugin.Mixfile do
   def project do
     [
       app: :membrane_opus_plugin,
-      compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       version: @version,
       elixir: "~> 1.12",
+      compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      dialyzer: dialyzer(),
 
       # hex
       description: "Membrane Opus encoder and decoder",
@@ -48,6 +49,22 @@ defmodule Membrane.Opus.Plugin.Mixfile do
     ]
   end
 
+  defp dialyzer() do
+    opts = [
+      plt_local_path: "priv/plts",
+      flags: [:error_handling]
+    ]
+
+    if System.get_env("CI") == "true" do
+      # Store core PLTs in cacheable directory for CI
+      # For development it's better to stick to default, $MIX_HOME based path
+      # to allow sharing core PLTs between projects
+      [plt_core_path: "priv/plts"] ++ opts
+    else
+      opts
+    end
+  end
+
   defp package do
     [
       maintainers: ["Membrane Team"],
@@ -56,7 +73,8 @@ defmodule Membrane.Opus.Plugin.Mixfile do
         "GitHub" => @github_url,
         "Membrane Framework Homepage" => "https://membraneframework.org"
       },
-      files: ["lib", "mix.exs", "README*", "LICENSE*", ".formatter.exs", "bundlex.exs", "c_src"]
+      files: ["lib", "mix.exs", "README*", "LICENSE*", ".formatter.exs", "bundlex.exs", "c_src"],
+      exclude_patterns: [~r"c_src/.*/_generated.*"]
     ]
   end
 

@@ -7,8 +7,8 @@ defmodule Membrane.Opus.Decoder do
 
   alias __MODULE__.Native
   alias Membrane.{Buffer, Opus, RemoteStream}
-  alias Membrane.RawAudio
   alias Membrane.Opus.Util
+  alias Membrane.RawAudio
 
   def_options sample_rate: [
                 spec: 8_000 | 12_000 | 16_000 | 24_000 | 48_000,

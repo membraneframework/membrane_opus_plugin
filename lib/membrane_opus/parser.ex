@@ -47,10 +47,7 @@ defmodule Membrane.Opus.Parser do
   def_input_pad :input,
     demand_unit: :buffers,
     demand_mode: :auto,
-    caps: [
-      Opus,
-      {RemoteStream, type: :bytestream, content_format: one_of([Opus, nil])}
-    ]
+    caps: [Opus, {RemoteStream, content_format: one_of([Opus, nil])}]
 
   def_output_pad :output, caps: Opus, demand_mode: :auto
 
@@ -118,7 +115,10 @@ defmodule Membrane.Opus.Parser do
           processor :: Delimitation.processor_t(),
           packets :: [Buffer.t()],
           channels :: 0..2
-        ) :: {:ok, remaining_buffer :: binary, packets :: [Buffer.t()], channels :: 0..2} | :error
+        ) ::
+          {:ok, remaining_buffer :: binary, pts :: Membrane.Time.t(), packets :: [Buffer.t()],
+           channels :: 0..2}
+          | :error
   defp maybe_parse(data, pts, input_delimitted?, processor, packets \\ [], channels \\ 0)
 
   defp maybe_parse(data, pts, input_delimitted?, processor, packets, channels)

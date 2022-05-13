@@ -8,9 +8,9 @@ defmodule Membrane.Opus.Encoder do
 
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.RawAudio
   alias Membrane.Caps.Matcher
   alias Membrane.Opus
+  alias Membrane.RawAudio
 
   @list_type allowed_channels :: [1, 2]
   @list_type allowed_applications :: [:voip, :audio, :low_delay]
