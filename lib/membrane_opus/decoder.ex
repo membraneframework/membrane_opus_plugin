@@ -5,6 +5,8 @@ defmodule Membrane.Opus.Decoder do
 
   use Membrane.Filter
 
+  require Membrane.Logger
+
   alias __MODULE__.Native
   alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Opus.Util
@@ -53,13 +55,18 @@ defmodule Membrane.Opus.Decoder do
 
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
-    {:ok, _config_number, stereo_flag, _frame_packing} = Util.parse_toc_byte(buffer.payload)
-    channels = Util.parse_channels(stereo_flag)
-    {caps, state} = maybe_make_native(channels, state)
+    with {:ok, _config_number, stereo_flag, _frame_packing} <- Util.parse_toc_byte(buffer.payload) do
+      channels = Util.parse_channels(stereo_flag)
+      {caps, state} = maybe_make_native(channels, state)
 
-    decoded = Native.decode_packet(state.native, buffer.payload)
-    buffer = %Buffer{buffer | payload: decoded}
-    {{:ok, caps ++ [buffer: {:output, buffer}]}, state}
+      decoded = Native.decode_packet(state.native, buffer.payload)
+      buffer = %Buffer{buffer | payload: decoded}
+      {{:ok, caps ++ [buffer: {:output, buffer}]}, state}
+    else
+      err ->
+        Membrane.Logger.warn(err)
+        {:ok, state}
+    end
   end
 
   @impl true
