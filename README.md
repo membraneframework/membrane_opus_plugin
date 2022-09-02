@@ -6,7 +6,7 @@
 
 Opus encoder and decoder.
 
-It is a part of [Membrane Multimedia Framework](https://membraneframework.org).
+It is a part of [Membrane Multimedia Framework](https://membrane.stream).
 
 ## Installation
 
@@ -37,10 +37,11 @@ pacman -S opus
 brew install opus
 ```
 
-## Usage example
+## Usage
 
-### Encoder 
-Encode sample raw file and save it as an opus file:
+### Encoder
+
+The pipeline encodes a sample raw file and saves it as an opus file:
 
 ```elixir
 defmodule Membrane.ReleaseTest.Pipeline do
@@ -85,7 +86,9 @@ media player. See `Membrane.Ogg.Payloader` in the [Membrane Ogg Plugin](https://
 
 
 ### Decoder
-Decode sample opus file and save it as raw file: 
+
+The pipeline parses, decodes a sample opus file and then saves it as a raw file:
+
 ```elixir
 defmodule Membrane.ReleaseTest.Pipeline2 do
   use Membrane.Pipeline
@@ -114,8 +117,6 @@ defmodule Membrane.ReleaseTest.Pipeline2 do
   end
 end
 ```
-
-For more information please refer to `Membrane.Opus.Encoder`/`Membrane.Opus.Decoder` module documentation or our tests.
 
 ## Copyright and License
 
