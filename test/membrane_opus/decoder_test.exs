@@ -4,31 +4,25 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
   alias Membrane.Opus.Decoder
   alias Membrane.Opus.Support.Reader
   alias Membrane.RemoteStream
+  alias Membrane.{Testing, Testing.Pipeline}
 
   @sample_opus_packets Reader.read_packets("test/fixtures/decoder_output_reference")
   @sample_raw Reader.read_packets("test/fixtures/raw_packets")
 
   test "integration" do
-    import Membrane.ParentSpec
+    import Membrane.ChildrenSpec
     import Membrane.Testing.Assertions
-    alias Membrane.Testing
 
-    elements = [
-      source: %Testing.Source{
+    structure = [
+      child(:source, %Testing.Source{
         output: @sample_opus_packets,
-        caps: %RemoteStream{type: :packetized}
-      },
-      opus: Decoder,
-      sink: Testing.Sink
+        stream_format: %RemoteStream{type: :packetized}
+      })
+      |> child(:opus, Decoder)
+      |> child(:sink, Testing.Sink)
     ]
 
-    links = [link(:source) |> to(:opus) |> to(:sink)]
-
-    {:ok, pipeline} =
-      Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-        elements: elements,
-        links: links
-      })
+    {:ok, _supervisor_pid, pipeline} = Pipeline.start_link(structure: structure)
 
     assert_start_of_stream(pipeline, :sink)
 

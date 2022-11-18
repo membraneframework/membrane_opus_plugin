@@ -57,7 +57,7 @@ defmodule Membrane.ReleaseTest.Pipeline do
       },
       encoder: %Membrane.Opus.Encoder{
         application: :audio,
-        input_caps: %RawAudio{
+        input_stream_format: %RawAudio{
           channels: 2,
           sample_format: :s16le,
           sample_rate: 48_000

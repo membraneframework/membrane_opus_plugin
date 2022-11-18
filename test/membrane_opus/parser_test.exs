@@ -3,6 +3,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
   import Membrane.Time
   import Membrane.Testing.Assertions
+  import Membrane.ChildrenSpec
 
   alias Membrane.Opus.Parser
   alias Membrane.RemoteStream
@@ -93,15 +94,13 @@ defmodule Membrane.Opus.Parser.ParserTest do
       @fixtures
       |> Enum.map(fn fixture -> fixture.normal end)
 
-    options = %Pipeline.Options{
-      elements: [
-        source: %Source{output: inputs, caps: %RemoteStream{type: :bytestream}},
-        parser: Parser,
-        sink: Sink
-      ]
-    }
+    structure = [
+      child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
+      |> child(:parser, Parser)
+      |> child(:sink, Sink)
+    ]
 
-    {:ok, pipeline} = Pipeline.start_link(options)
+    {:ok, _supervisor_pid, pipeline} = Pipeline.start_link(structure: structure)
 
     do_test(pipeline, false)
   end
@@ -111,15 +110,13 @@ defmodule Membrane.Opus.Parser.ParserTest do
       @fixtures
       |> Enum.map(fn fixture -> fixture.normal end)
 
-    options = %Pipeline.Options{
-      elements: [
-        source: %Source{output: inputs, caps: %RemoteStream{type: :bytestream}},
-        parser: %Parser{delimitation: :delimit},
-        sink: Sink
-      ]
-    }
+    structure = [
+      child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
+      |> child(:parser, %Parser{delimitation: :delimit})
+      |> child(:sink, Sink)
+    ]
 
-    {:ok, pipeline} = Pipeline.start_link(options)
+    {:ok, _supervisor_pid, pipeline} = Pipeline.start_link(structure: structure)
 
     do_test(pipeline, true)
   end
@@ -129,15 +126,13 @@ defmodule Membrane.Opus.Parser.ParserTest do
       @fixtures
       |> Enum.map(fn fixture -> fixture.delimited end)
 
-    options = %Pipeline.Options{
-      elements: [
-        source: %Source{output: inputs, caps: %RemoteStream{type: :bytestream}},
-        parser: %Parser{input_delimitted?: true},
-        sink: Sink
-      ]
-    }
+    structure = [
+      child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
+      |> child(:parser, %Parser{input_delimitted?: true})
+      |> child(:sink, Sink)
+    ]
 
-    {:ok, pipeline} = Pipeline.start_link(options)
+    {:ok, _supervisor_pid, pipeline} = Pipeline.start_link(structure: structure)
 
     do_test(pipeline, true)
   end
@@ -147,15 +142,13 @@ defmodule Membrane.Opus.Parser.ParserTest do
       @fixtures
       |> Enum.map(fn fixture -> fixture.delimited end)
 
-    options = %Pipeline.Options{
-      elements: [
-        source: %Source{output: inputs, caps: %RemoteStream{type: :bytestream}},
-        parser: %Parser{delimitation: :undelimit, input_delimitted?: true},
-        sink: Sink
-      ]
-    }
+    structure = [
+      child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
+      |> child(:parser, %Parser{delimitation: :undelimit, input_delimitted?: true})
+      |> child(:sink, Sink)
+    ]
 
-    {:ok, pipeline} = Pipeline.start_link(options)
+    {:ok, _supervisor_pid, pipeline} = Pipeline.start_link(structure: structure)
 
     do_test(pipeline, false)
   end
@@ -181,7 +174,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
     |> then(&Enum.zip([nil | &1], &1))
     |> Enum.reject(fn {a, b} -> a == b end)
     |> Enum.each(fn {_old_channels, new_channels} ->
-      assert_sink_caps(
+      assert_sink_stream_format(
         pipeline,
         :sink,
         %Opus{channels: ^new_channels, self_delimiting?: ^self_delimiting?},
@@ -189,7 +182,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       )
     end)
 
-    refute_sink_caps(pipeline, :sink, 0)
+    refute_sink_stream_format(pipeline, :sink, 0)
 
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)

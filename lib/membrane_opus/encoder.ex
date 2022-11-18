@@ -4,17 +4,19 @@ defmodule Membrane.Opus.Encoder do
   """
 
   use Membrane.Filter
-  use Bunch.Typespec
 
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Caps.Matcher
   alias Membrane.Opus
   alias Membrane.RawAudio
 
-  @list_type allowed_channels :: [1, 2]
-  @list_type allowed_applications :: [:voip, :audio, :low_delay]
-  @list_type allowed_sample_rates :: [8000, 12_000, 16_000, 24_000, 48_000]
+  @allowed_channels [1, 2]
+  @allowed_applications [:voip, :audio, :low_delay]
+  @allowed_sample_rates [8000, 12_000, 16_000, 24_000, 48_000]
+
+  @type allowed_channels :: unquote(Bunch.Typespec.enum_to_alternative(@allowed_channels))
+  @type allowed_applications :: unquote(Bunch.Typespec.enum_to_alternative(@allowed_applications))
+  @type allowed_sample_rates :: unquote(Bunch.Typespec.enum_to_alternative(@allowed_sample_rates))
 
   def_options application: [
                 spec: allowed_applications(),
@@ -25,9 +27,9 @@ defmodule Membrane.Opus.Encoder do
                 See https://opus-codec.org/docs/opus_api-1.3.1/group__opus__encoder.html#gaa89264fd93c9da70362a0c9b96b9ca88.
                 """
               ],
-              input_caps: [
+              input_stream_format: [
                 spec: RawAudio.t(),
-                type: :caps,
+                type: :stream_format,
                 default: nil,
                 description: """
                 Input type - used to set input sample rate and channels.
@@ -37,18 +39,21 @@ defmodule Membrane.Opus.Encoder do
   def_input_pad :input,
     demand_unit: :bytes,
     demand_mode: :auto,
-    caps: [
-      {RawAudio,
-       sample_format: :s16le,
-       channels: Matcher.one_of(@allowed_channels),
-       sample_rate: Matcher.one_of(@allowed_sample_rates)},
-      Membrane.RemoteStream
-    ]
+    accepted_format:
+      any_of(
+        %RawAudio{
+          sample_format: :s16le,
+          channels: channels,
+          sample_rate: sample_rate
+        }
+        when channels in @allowed_channels and sample_rate in @allowed_sample_rates,
+        Membrane.RemoteStream
+      )
 
-  def_output_pad :output, caps: {Opus, self_delimiting?: false}, demand_mode: :auto
+  def_output_pad :output, accepted_format: %Opus{self_delimiting?: false}, demand_mode: :auto
 
   @impl true
-  def handle_init(%__MODULE__{} = options) do
+  def handle_init(_ctx, %__MODULE__{} = options) do
     state =
       options
       |> Map.from_struct()
@@ -57,14 +62,14 @@ defmodule Membrane.Opus.Encoder do
         queue: <<>>
       })
 
-    {:ok, state}
+    {[], state}
   end
 
   @impl true
-  def handle_stopped_to_prepared(_ctx, state) do
+  def handle_setup(_ctx, state) do
     case mk_native(state) do
       {:ok, native} ->
-        {:ok, %{state | native: native}}
+        {[], %{state | native: native}}
 
       {:error, reason} ->
         {{:error, reason}, state}
@@ -72,36 +77,54 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_prepared_to_playing(_ctx, %{input_caps: caps} = state) when not is_nil(caps) do
-    output_caps = %Opus{channels: caps.channels}
-    {{:ok, caps: {:output, output_caps}}, state}
+  def handle_playing(_ctx, %{input_stream_format: stream_format} = state)
+      when not is_nil(stream_format) do
+    output_stream_format = %Opus{channels: stream_format.channels}
+    {[stream_format: {:output, output_stream_format}], state}
   end
 
   @impl true
-  def handle_caps(:input, %RawAudio{} = caps, _ctx, %{input_caps: nil} = state) do
-    output_caps = %Opus{channels: caps.channels}
-    {{:ok, caps: {:output, output_caps}}, %{state | input_caps: caps}}
+  def handle_stream_format(
+        :input,
+        %RawAudio{} = stream_format,
+        _ctx,
+        %{input_stream_format: nil} = state
+      ) do
+    output_stream_format = %Opus{channels: stream_format.channels}
+
+    {[stream_format: {:output, output_stream_format}],
+     %{state | input_stream_format: stream_format}}
   end
 
   @impl true
-  def handle_caps(:input, %Membrane.RemoteStream{} = _caps, _ctx, %{input_caps: nil} = _state) do
+  def handle_stream_format(
+        :input,
+        %Membrane.RemoteStream{} = _stream_format,
+        _ctx,
+        %{input_stream_format: nil} = _state
+      ) do
     raise """
-    You need to specify `input_caps` in options if `Membrane.RemoteStream` will be received on the `:input` pad
+    You need to specify `input_stream_format` in options if `Membrane.RemoteStream` will be received on the `:input` pad
     """
   end
 
   @impl true
-  def handle_caps(:input, caps, _ctx, %{input_caps: caps} = state) do
-    {:ok, state}
+  def handle_stream_format(
+        :input,
+        stream_format,
+        _ctx,
+        %{input_stream_format: stream_format} = state
+      ) do
+    {[], state}
   end
 
   @impl true
-  def handle_caps(:input, %Membrane.RemoteStream{} = _caps, _ctx, state) do
-    {:ok, state}
+  def handle_stream_format(:input, %Membrane.RemoteStream{} = _stream_format, _ctx, state) do
+    {[], state}
   end
 
   @impl true
-  def handle_caps(:input, _caps, _ctx, _state) do
+  def handle_stream_format(:input, _stream_format, _ctx, _state) do
     raise """
     Changing input sample rate or channels is not supported
     """
@@ -112,17 +135,12 @@ defmodule Membrane.Opus.Encoder do
     case encode_buffer(state.queue <> data, state, frame_size_in_bytes(state)) do
       {:ok, {[], rest}} ->
         # nothing was encoded
-        {:ok, %{state | queue: rest}}
+        {[], %{state | queue: rest}}
 
       {:ok, {encoded_buffers, rest}} ->
         # something was encoded
-        {{:ok, buffer: {:output, encoded_buffers}}, %{state | queue: rest}}
+        {[buffer: {:output, encoded_buffers}], %{state | queue: rest}}
     end
-  end
-
-  @impl true
-  def handle_prepared_to_stopped(_ctx, state) do
-    {:ok, %{state | native: nil}}
   end
 
   @impl true
@@ -135,15 +153,15 @@ defmodule Membrane.Opus.Encoder do
       to_encode = String.pad_trailing(state.queue, frame_size_in_bytes(state), <<0>>)
       {:ok, raw_encoded} = Native.encode_packet(state.native, to_encode, frame_size(state))
       buffer_actions = [buffer: {:output, %Buffer{payload: raw_encoded}}]
-      {{:ok, buffer_actions ++ actions}, %{state | queue: <<>>}}
+      {buffer_actions ++ actions, %{state | queue: <<>>}}
     else
-      {{:ok, actions}, %{state | queue: <<>>}}
+      {actions, %{state | queue: <<>>}}
     end
   end
 
   defp mk_native(state) do
-    with {:ok, channels} <- validate_channels(state.input_caps.channels),
-         {:ok, input_rate} <- validate_sample_rate(state.input_caps.sample_rate),
+    with {:ok, channels} <- validate_channels(state.input_stream_format.channels),
+         {:ok, input_rate} <- validate_sample_rate(state.input_stream_format.sample_rate),
          {:ok, application} <- map_application_to_value(state.application),
          native <- Native.create(input_rate, channels, application) do
       {:ok, native}
@@ -172,11 +190,11 @@ defmodule Membrane.Opus.Encoder do
 
   defp frame_size(state) do
     # 20 milliseconds
-    div(state.input_caps.sample_rate, 1000) * 20
+    div(state.input_stream_format.sample_rate, 1000) * 20
   end
 
   defp frame_size_in_bytes(state) do
-    RawAudio.frames_to_bytes(frame_size(state), state.input_caps)
+    RawAudio.frames_to_bytes(frame_size(state), state.input_stream_format)
   end
 
   defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames \\ [])

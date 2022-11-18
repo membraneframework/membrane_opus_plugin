@@ -37,15 +37,16 @@ defmodule Membrane.Opus.Plugin.Mixfile do
   defp deps do
     [
       {:bunch, "~> 1.3"},
-      {:membrane_core, "~> 0.10.0"},
+      {:membrane_core, "~> 0.11.0"},
       {:membrane_opus_format, "~> 0.3.0"},
-      {:membrane_raw_audio_format, "~> 0.9.0"},
+      {:membrane_raw_audio_format,
+       github: "membraneframework/membrane_raw_audio_format", branch: "core-v0.11"},
       {:unifex, "~> 1.0"},
-      {:membrane_common_c, "~> 0.13.0"},
+      {:membrane_common_c, "~> 0.14.0"},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:credo, ">= 0.0.0", only: :dev, runtime: false},
-      {:membrane_file_plugin, "~> 0.12.0", only: :test}
+      {:membrane_file_plugin, "~> 0.13.0", only: :test}
     ]
   end
 
