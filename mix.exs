@@ -8,7 +8,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
     [
       app: :membrane_opus_plugin,
       version: @version,
-      elixir: "~> 1.12",
+      elixir: "~> 1.13",
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -39,8 +39,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       {:bunch, "~> 1.3"},
       {:membrane_core, "~> 0.11.0"},
       {:membrane_opus_format, "~> 0.3.0"},
-      {:membrane_raw_audio_format,
-       github: "membraneframework/membrane_raw_audio_format", branch: "core-v0.11"},
+      {:membrane_raw_audio_format, "~> 0.10.0"},
       {:unifex, "~> 1.0"},
       {:membrane_common_c, "~> 0.14.0"},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
