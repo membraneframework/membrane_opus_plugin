@@ -100,7 +100,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       |> child(:sink, Sink)
     ]
 
-    {:ok, _supervisor_pid, pipeline} = Pipeline.start_link(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(structure: structure)
 
     do_test(pipeline, false)
   end
@@ -116,7 +116,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       |> child(:sink, Sink)
     ]
 
-    {:ok, _supervisor_pid, pipeline} = Pipeline.start_link(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(structure: structure)
 
     do_test(pipeline, true)
   end
@@ -132,7 +132,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       |> child(:sink, Sink)
     ]
 
-    {:ok, _supervisor_pid, pipeline} = Pipeline.start_link(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(structure: structure)
 
     do_test(pipeline, true)
   end
@@ -148,7 +148,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       |> child(:sink, Sink)
     ]
 
-    {:ok, _supervisor_pid, pipeline} = Pipeline.start_link(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(structure: structure)
 
     do_test(pipeline, false)
   end

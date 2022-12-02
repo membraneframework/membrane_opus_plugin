@@ -32,7 +32,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
       })
     ]
 
-    {:ok, _supervisor_pid, pipeline_pid} = Pipeline.start_link(structure: structure)
+    pipeline_pid = Pipeline.start_link_supervised!(structure: structure)
 
     {:ok, %{pipeline_pid: pipeline_pid}}
   end

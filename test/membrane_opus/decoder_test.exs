@@ -22,7 +22,7 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
       |> child(:sink, Testing.Sink)
     ]
 
-    {:ok, _supervisor_pid, pipeline} = Pipeline.start_link(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(structure: structure)
 
     assert_start_of_stream(pipeline, :sink)
 
