@@ -25,53 +25,48 @@ defmodule Membrane.Opus.Decoder do
   def_input_pad :input,
     demand_unit: :buffers,
     demand_mode: :auto,
-    caps: [
-      {Opus, self_delimiting?: false},
-      {RemoteStream, type: :packetized, content_format: one_of([Opus, nil])}
-    ]
+    accepted_format:
+      any_of(
+        %Opus{self_delimiting?: false},
+        %RemoteStream{type: :packetized, content_format: format} when format in [Opus, nil]
+      )
 
-  def_output_pad :output, caps: {RawAudio, sample_format: :s16le}, demand_mode: :auto
+  def_output_pad :output, accepted_format: %RawAudio{sample_format: :s16le}, demand_mode: :auto
 
   @impl true
-  def handle_init(%__MODULE__{} = options) do
+  def handle_init(_ctx, %__MODULE__{} = options) do
     state =
       options
       |> Map.from_struct()
       |> Map.merge(%{native: nil, channels: nil})
 
-    {:ok, state}
+    {[], state}
   end
 
   @impl true
-  def handle_caps(:input, %Opus{channels: channels}, _ctx, state) do
-    {caps, state} = maybe_make_native(channels, state)
-    {{:ok, caps}, state}
+  def handle_stream_format(:input, %Opus{channels: channels}, _ctx, state) do
+    maybe_make_native(channels, state)
   end
 
   @impl true
-  def handle_caps(:input, _caps, _ctx, state) do
-    {:ok, state}
+  def handle_stream_format(:input, _stream_format, _ctx, state) do
+    {[], state}
   end
 
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
     if buffer.payload === "" do
       Membrane.Logger.warn("Payload is empty.")
-      {:ok, state}
+      {[], state}
     else
       {:ok, _config_number, stereo_flag, _frame_packing} = Util.parse_toc_byte(buffer.payload)
       channels = Util.parse_channels(stereo_flag)
-      {caps, state} = maybe_make_native(channels, state)
+      {stream_format, state} = maybe_make_native(channels, state)
 
       decoded = Native.decode_packet(state.native, buffer.payload)
       buffer = %Buffer{buffer | payload: decoded}
-      {{:ok, caps ++ [buffer: {:output, buffer}]}, state}
+      {stream_format ++ [buffer: {:output, buffer}], state}
     end
-  end
-
-  @impl true
-  def handle_prepared_to_stopped(_ctx, state) do
-    {:ok, %{state | native: nil}}
   end
 
   defp maybe_make_native(channels, %{channels: channels} = state) do
@@ -80,7 +75,13 @@ defmodule Membrane.Opus.Decoder do
 
   defp maybe_make_native(channels, state) do
     native = Native.create(state.sample_rate, channels)
-    caps = %RawAudio{sample_format: :s16le, channels: channels, sample_rate: state.sample_rate}
-    {[caps: {:output, caps}], %{state | native: native, channels: channels}}
+
+    stream_format = %RawAudio{
+      sample_format: :s16le,
+      channels: channels,
+      sample_rate: state.sample_rate
+    }
+
+    {[stream_format: {:output, stream_format}], %{state | native: native, channels: channels}}
   end
 end

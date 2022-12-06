@@ -1,6 +1,6 @@
 defmodule Membrane.Opus.Parser do
   @moduledoc """
-  Parses a raw incoming Opus stream and adds caps information, as well as metadata.
+  Parses a raw incoming Opus stream and adds stream_format information, as well as metadata.
 
   Adds the following metadata:
 
@@ -40,19 +40,20 @@ defmodule Membrane.Opus.Parser do
                 If you know that the input is self-delimitted? but you're reading from
                 some element that isn't sending the correct structure, you can set this
                 to true to force the Parser to assume the input is self-delimitted? and
-                ignore upstream caps information on self-delimitation.
+                ignore upstream stream_format information on self-delimitation.
                 """
               ]
 
   def_input_pad :input,
     demand_unit: :buffers,
     demand_mode: :auto,
-    caps: [Opus, {RemoteStream, content_format: one_of([Opus, nil])}]
+    accepted_format:
+      any_of(Opus, %RemoteStream{content_format: format} when format in [Opus, nil])
 
-  def_output_pad :output, caps: Opus, demand_mode: :auto
+  def_output_pad :output, accepted_format: Opus, demand_mode: :auto
 
   @impl true
-  def handle_init(%__MODULE__{} = options) do
+  def handle_init(_ctx, %__MODULE__{} = options) do
     state =
       options
       |> Map.from_struct()
@@ -61,13 +62,13 @@ defmodule Membrane.Opus.Parser do
         buffer: <<>>
       })
 
-    {:ok, state}
+    {[], state}
   end
 
   @impl true
-  def handle_caps(:input, _caps, _ctx, state) do
-    # ignore caps, they will be sent in handle_process
-    {:ok, state}
+  def handle_stream_format(:input, _stream_format, _ctx, state) do
+    # ignore stream_format, they will be sent in handle_process
+    {[], state}
   end
 
   @impl true
@@ -82,7 +83,7 @@ defmodule Membrane.Opus.Parser do
            delimitation_processor
          ) do
       {:ok, buffer, pts, packets, channels} ->
-        caps = %Opus{
+        stream_format = %Opus{
           self_delimiting?: self_delimiting?,
           channels: channels
         }
@@ -91,8 +92,8 @@ defmodule Membrane.Opus.Parser do
 
         packet_actions =
           cond do
-            packets_len > 0 and caps != ctx.pads.output.caps ->
-              [caps: {:output, caps}, buffer: {:output, packets}]
+            packets_len > 0 and stream_format != ctx.pads.output.stream_format ->
+              [stream_format: {:output, stream_format}, buffer: {:output, packets}]
 
             packets_len > 0 ->
               [buffer: {:output, packets}]
@@ -101,7 +102,7 @@ defmodule Membrane.Opus.Parser do
               []
           end
 
-        {{:ok, packet_actions}, %{state | buffer: buffer, pts: pts}}
+        {packet_actions, %{state | buffer: buffer, pts: pts}}
 
       :error ->
         {{:error, "An error occured in parsing"}, state}

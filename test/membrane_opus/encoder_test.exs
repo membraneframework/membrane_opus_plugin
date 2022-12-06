@@ -2,10 +2,11 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   use ExUnit.Case, async: true
 
   import Membrane.Testing.Assertions
+  import Membrane.ChildrenSpec
 
   alias Membrane.Opus.Encoder
   alias Membrane.RawAudio
-  alias Membrane.Testing
+  alias Membrane.Testing.Pipeline
 
   @input_path "test/fixtures/raw_packets"
   @output_path "test/fixtures/encoder_output"
@@ -14,27 +15,24 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   setup do
     on_exit(fn -> File.rm(@output_path) end)
 
-    elements = [
-      source: %Membrane.File.Source{
+    structure = [
+      child(:source, %Membrane.File.Source{
         location: @input_path
-      },
-      encoder: %Encoder{
+      })
+      |> child(:encoder, %Encoder{
         application: :audio,
-        input_caps: %RawAudio{
+        input_stream_format: %RawAudio{
           channels: 2,
           sample_format: :s16le,
           sample_rate: 48_000
         }
-      },
-      sink: %Membrane.File.Sink{
+      })
+      |> child(:sink, %Membrane.File.Sink{
         location: @output_path
-      }
+      })
     ]
 
-    {:ok, pipeline_pid} =
-      Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-        elements: elements
-      })
+    pipeline_pid = Pipeline.start_link_supervised!(structure: structure)
 
     {:ok, %{pipeline_pid: pipeline_pid}}
   end
