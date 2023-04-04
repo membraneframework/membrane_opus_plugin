@@ -37,6 +37,16 @@ pacman -S opus
 brew install opus
 ```
 
+### MacOS M1/M2 (Apple silicon)
+
+On Apple M1/M2 chips, one needs to export variables:
+```
+export C_INCLUDE_PATH=/opt/homebrew/Cellar/libnice/0.1.18/include:/opt/homebrew/Cellar/opus/1.3.1/include:/opt/homebrew/Cellar/openssl@1.1/1.1.1l_1/include
+export LIBRARY_PATH=/opt/homebrew/Cellar/opus/1.3.1/lib
+export PKG_CONFIG_PATH=/opt/homebrew/Cellar/openssl@1.1/1.1.1l_1/lib/pkgconfig/
+```
+On different local setups, directory and version names may differ.
+
 ## Usage
 
 ### Encoder
