@@ -41,9 +41,9 @@ brew install opus
 
 On Apple M1/M2 chips, one needs to export variables:
 ```
-export C_INCLUDE_PATH=/opt/homebrew/Cellar/libnice/0.1.18/include:/opt/homebrew/Cellar/opus/1.3.1/include:/opt/homebrew/Cellar/openssl@1.1/1.1.1l_1/include
-export LIBRARY_PATH=/opt/homebrew/Cellar/opus/1.3.1/lib
-export PKG_CONFIG_PATH=/opt/homebrew/Cellar/openssl@1.1/1.1.1l_1/lib/pkgconfig/
+export C_INCLUDE_PATH=$C_INCLUDE_PATH:$(brew --cellar)/opus/1.3.1/include:$(brew --cellar)/openssl@1.1/1.1.1l_1/include
+export LIBRARY_PATH=$LIBRARY_PATH:$(brew --cellar)/opus/1.3.1/lib
+export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$(brew --cellar)/openssl@1.1/1.1.1l_1/lib/pkgconfig/
 ```
 On different local setups, directory and version names may differ.
 
