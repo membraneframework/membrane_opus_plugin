@@ -37,6 +37,15 @@ pacman -S opus
 brew install opus
 ```
 
+### MacOS M1/M2 (Apple silicon)
+
+On Apple M1/M2 chips, one needs to export variables:
+```
+export C_INCLUDE_PATH=$C_INCLUDE_PATH:$(brew --cellar)/opus/1.3.1/include
+export LIBRARY_PATH=$LIBRARY_PATH:$(brew --cellar)/opus/1.3.1/lib
+```
+On different local setups, directory and version names may differ.
+
 ## Usage
 
 ### Encoder
