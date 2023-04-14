@@ -15,7 +15,7 @@ The package can be installed by adding `membrane_opus_plugin` to your list of de
 ```elixir
 def deps do
   [
-	{:membrane_opus_plugin, "~> 0.16.0"}
+	{:membrane_opus_plugin, "~> 0.16.1"}
   ]
 end
 ```
@@ -55,37 +55,31 @@ The pipeline encodes a sample raw file and saves it as an opus file:
 ```elixir
 defmodule Membrane.ReleaseTest.Pipeline do
   use Membrane.Pipeline
-
   alias Membrane.RawAudio
 
+  @input_filename "/tmp/input.raw"
+  @output_filename "/tmp/output.opus"
+
   @impl true
-  def handle_init(_) do
-    children = [
-      source: %Membrane.File.Source{
-        location: "/tmp/input.raw"
-      },
-      encoder: %Membrane.Opus.Encoder{
+  def handle_init(_ctx, _options) do
+    structure = 
+      child(:source, %Membrane.File.Source{
+        location: @input_filename
+      })
+      |> child(:encoder, %Membrane.Opus.Encoder{
         application: :audio,
         input_stream_format: %RawAudio{
           channels: 2,
           sample_format: :s16le,
           sample_rate: 48_000
         }
-      },
-      parser: %Membrane.Opus.Parser{delimitation: :delimit},
-      sink: %Membrane.File.Sink{
-        location: "/tmp/output.opus"
-      }
-    ]
+      })
+      |> child(:parser, %Membrane.Opus.Parser{delimitation: :delimit})
+      |> child(:sink, %Membrane.File.Sink{
+        location: @output_filename
+      })
 
-    links = [
-      link(:source)
-      |> to(:encoder)
-      |> to(:parser)
-      |> to(:sink)
-    ]
-
-    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+    {[spec: structure], %{}}
   end
 end
 ```
@@ -102,27 +96,22 @@ The pipeline parses, decodes a sample opus file and then saves it as a raw file:
 defmodule Membrane.ReleaseTest.Pipeline2 do
   use Membrane.Pipeline
 
+  @input_filename "/tmp/input.raw"
+  @output_filename "/tmp/output.opus"
+
   @impl true
-  def handle_init(_) do
-    children = [
-      source: %Membrane.File.Source{
-        location: "/tmp/input.opus"
-      },
-      parser: Membrane.Opus.Parser,
-      opus: Membrane.Opus.Decoder,
-      sink: %Membrane.File.Sink{
-        location: "/tmp/output.raw"
-      }
-    ]
+  def handle_init(_ctx, _options) do
+    structure = 
+      child(:source, %Membrane.File.Source{
+        location: @input_filename
+      })
+      |> child(:parser, Membrane.Opus.Parser)
+      |> child(:opus, Membrane.Opus.Decoder)
+      |> child(:sink, %Membrane.File.Sink{
+        location: @output_filename
+      })
 
-    links = [
-      link(:source)
-      |> to(:parser)
-      |> to(:opus)
-      |> to(:sink)
-    ]
-
-    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+    {[spec: structure], %{}}
   end
 end
 ```
