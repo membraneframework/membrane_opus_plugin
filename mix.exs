@@ -22,7 +22,6 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       # docs
       name: "Membrane Opus plugin",
       source_url: @github_url,
-      homepage_url: "https://membrane.stream",
       docs: docs()
     ]
   end
