@@ -24,7 +24,7 @@ defmodule Membrane.Opus.Util do
   @spec parse_configuration(config_number :: 0..31) ::
           {:ok, mode :: :silk | :hybrid | :celt,
            bandwidth :: :narrow | :medium | :wide | :super_wide | :full,
-           frame_duration :: Membrane.Time.non_neg_t()}
+           frame_duration :: Membrane.Time.non_neg()}
           | :error
   # Credo CC check thinks that this function is super complex, but for an actual human it isn't.
   # Therefore, it makes sense to disable the check for this function
