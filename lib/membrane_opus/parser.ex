@@ -176,7 +176,7 @@ defmodule Membrane.Opus.Parser do
   end
 
   @spec elapsed_time(frame_lengths :: [non_neg_integer], frame_duration :: pos_integer) ::
-          elapsed_time :: Membrane.Time.non_neg_t()
+          elapsed_time :: Membrane.Time.non_neg()
   defp elapsed_time(frame_lengths, frame_duration) do
     # if a frame has length 0 it indicates a dropped frame and should not be
     # included in this calc
