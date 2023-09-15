@@ -6,7 +6,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
 
   alias Membrane.Opus.Encoder
   alias Membrane.RawAudio
-  alias Membrane.Testing.{Pipeline, Sink, Source}
+  alias Membrane.Testing.{Pipeline, Sink}
 
   @input_path "test/fixtures/raw_packets"
   @reference_path "test/fixtures/encoder_output_reference"
@@ -50,8 +50,11 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
 
   test "encoder works with stream format received on :input pad" do
     structure = [
-      child(:source, %Source{
-        stream_format: %RawAudio{channels: 2, sample_format: :s16le, sample_rate: 16_000}
+      child(:source, %Membrane.File.Source{
+        location: @input_path
+      })
+      |> child(:parser, %Membrane.RawAudioParser{
+        stream_format: %Membrane.RawAudio{channels: 2, sample_format: :s16le, sample_rate: 48_000}
       })
       |> child(:encoder, Encoder)
       |> child(:sink, Sink)
