@@ -8,7 +8,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
     [
       app: :membrane_opus_plugin,
       version: @version,
-      elixir: "~> 1.15",
+      elixir: "~> 1.13",
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
