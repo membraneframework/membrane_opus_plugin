@@ -56,7 +56,7 @@ defmodule Membrane.Opus.Decoder do
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
     if buffer.payload === "" do
-      Membrane.Logger.warn("Payload is empty.")
+      Membrane.Logger.warning("Payload is empty.")
       {[], state}
     else
       {:ok, _config_number, stereo_flag, _frame_packing} = Util.parse_toc_byte(buffer.payload)
