@@ -15,29 +15,31 @@ The package can be installed by adding `membrane_opus_plugin` to your list of de
 ```elixir
 def deps do
   [
-    {:membrane_opus_plugin, "~> 0.17.1"}
+    {:membrane_opus_plugin, "~> 0.18.0"}
   ]
 end
 ```
 
-This package depends on [libopus](http://opus-codec.org/docs/) library.
+This package depends on [libopus](http://opus-codec.org/docs/) library. The precompiled builds will be pulled and linked automatically. However, should there be any problems, consider installing it manually.
 
-### Ubuntu
+### Manual instalation of dependencies
+
+#### Ubuntu
 ```
 sudo apt-get install libopus-dev
 ```
 
-### Arch/Manjaro
+#### Arch/Manjaro
 ```
 pacman -S opus
 ```
 
-### MacOS
+#### MacOS
 ```
 brew install opus
 ```
 
-### MacOS M1/M2 (Apple silicon)
+#### MacOS M1/M2 (Apple silicon)
 
 On Apple M1/M2 chips, one needs to export variables:
 ```
