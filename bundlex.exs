@@ -30,14 +30,14 @@ defmodule Membrane.Opus.BundlexProject do
     [
       decoder: [
         sources: ["decoder.c"],
-        os_deps: [{get_opus_url(), "opus"}],
+        os_deps: [{[get_opus_url(), :pkg_config], "opus"}],
         interface: :nif,
         preprocessor: Unifex
       ],
       encoder: [
         deps: [membrane_common_c: :membrane],
         sources: ["encoder.c"],
-        os_deps: [{get_opus_url(), "opus"}],
+        os_deps: [{[get_opus_url(), :pkg_config], "opus"}],
         interface: :nif,
         preprocessor: Unifex
       ]
