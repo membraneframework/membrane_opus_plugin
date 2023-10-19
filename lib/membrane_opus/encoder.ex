@@ -169,8 +169,7 @@ defmodule Membrane.Opus.Encoder do
       Native.create(input_rate, channels, application)
     else
       {:error, reason} ->
-        Membrane.Logger.error("Failed to create native.\nReason: #{inspect(reason)}")
-        raise "Failed to create native"
+        raise "Failed to create encoder, reason: #{inspect(reason)}"
     end
   end
 
