@@ -6,14 +6,13 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
 
   alias Membrane.Opus.Encoder
   alias Membrane.RawAudio
-  alias Membrane.Testing.Pipeline
+  alias Membrane.Testing.{Pipeline, Sink}
 
   @input_path "test/fixtures/raw_packets"
-  @output_path "test/fixtures/encoder_output"
   @reference_path "test/fixtures/encoder_output_reference"
 
-  setup do
-    on_exit(fn -> File.rm(@output_path) end)
+  defp setup_pipeline(output_path) do
+    on_exit(fn -> File.rm(output_path) end)
 
     structure = [
       child(:source, %Membrane.File.Source{
@@ -28,24 +27,40 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
         }
       })
       |> child(:sink, %Membrane.File.Sink{
-        location: @output_path
+        location: output_path
       })
     ]
 
-    pipeline_pid = Pipeline.start_link_supervised!(structure: structure)
-
-    {:ok, %{pipeline_pid: pipeline_pid}}
+    Pipeline.start_link_supervised!(structure: structure)
   end
 
-  test "encoded output matches reference", context do
-    %{pipeline_pid: pipeline_pid} = context
+  @tag :tmp_dir
+  test "encoded output matches reference", %{tmp_dir: tmp_dir} do
+    output_path = Path.join(tmp_dir, "encoder_output")
+    pipeline_pid = setup_pipeline(output_path)
     assert_start_of_stream(pipeline_pid, :sink)
     assert_end_of_stream(pipeline_pid, :sink, _, 5000)
 
     reference = File.read!(@reference_path)
-    output = File.read!(@output_path)
+    output = File.read!(output_path)
     assert reference == output
 
     Membrane.Pipeline.terminate(pipeline_pid, blocking?: true)
+  end
+
+  test "encoder works with stream format received on :input pad" do
+    structure = [
+      child(:source, %Membrane.File.Source{
+        location: @input_path
+      })
+      |> child(:parser, %Membrane.RawAudioParser{
+        stream_format: %Membrane.RawAudio{channels: 2, sample_format: :s16le, sample_rate: 48_000}
+      })
+      |> child(:encoder, Encoder)
+      |> child(:sink, Sink)
+    ]
+
+    pipeline = Pipeline.start_link_supervised!(structure: structure)
+    assert_start_of_stream(pipeline, :encoder, :input)
   end
 end

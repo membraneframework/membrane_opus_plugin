@@ -5,6 +5,8 @@ defmodule Membrane.Opus.Encoder do
 
   use Membrane.Filter
 
+  require Membrane.Logger
+
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.Opus
@@ -66,15 +68,12 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_setup(_ctx, state) do
-    case mk_native(state) do
-      {:ok, native} ->
-        {[], %{state | native: native}}
-
-      {:error, reason} ->
-        {{:error, reason}, state}
-    end
+  def handle_setup(_ctx, state) when not is_nil(state.input_stream_format) do
+    {[], %{state | native: mk_native!(state)}}
   end
+
+  @impl true
+  def handle_setup(_ctx, state), do: {[], state}
 
   @impl true
   def handle_playing(_ctx, %{input_stream_format: stream_format} = state)
@@ -84,16 +83,20 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
+  def handle_playing(_ctx, state), do: {[], state}
+
+  @impl true
   def handle_stream_format(
         :input,
         %RawAudio{} = stream_format,
         _ctx,
         %{input_stream_format: nil} = state
       ) do
+    state = %{state | input_stream_format: stream_format}
+    native = mk_native!(state)
     output_stream_format = %Opus{channels: stream_format.channels}
 
-    {[stream_format: {:output, output_stream_format}],
-     %{state | input_stream_format: stream_format}}
+    {[stream_format: {:output, output_stream_format}], %{state | native: native}}
   end
 
   @impl true
@@ -159,14 +162,14 @@ defmodule Membrane.Opus.Encoder do
     end
   end
 
-  defp mk_native(state) do
+  defp mk_native!(state) do
     with {:ok, channels} <- validate_channels(state.input_stream_format.channels),
          {:ok, input_rate} <- validate_sample_rate(state.input_stream_format.sample_rate),
-         {:ok, application} <- map_application_to_value(state.application),
-         native <- Native.create(input_rate, channels, application) do
-      {:ok, native}
+         {:ok, application} <- map_application_to_value(state.application) do
+      Native.create(input_rate, channels, application)
     else
-      {:error, reason} -> {:error, reason}
+      {:error, reason} ->
+        raise "Failed to create encoder, reason: #{inspect(reason)}"
     end
   end
 
