@@ -14,7 +14,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   defp setup_pipeline(output_path) do
     on_exit(fn -> File.rm(output_path) end)
 
-    structure = [
+    spec = [
       child(:source, %Membrane.File.Source{
         location: @input_path
       })
@@ -31,7 +31,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
       })
     ]
 
-    Pipeline.start_link_supervised!(structure: structure)
+    Pipeline.start_link_supervised!(spec: spec)
   end
 
   @tag :tmp_dir
@@ -45,11 +45,11 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     output = File.read!(output_path)
     assert reference == output
 
-    Membrane.Pipeline.terminate(pipeline_pid, blocking?: true)
+    Membrane.Pipeline.terminate(pipeline_pid)
   end
 
   test "encoder works with stream format received on :input pad" do
-    structure = [
+    spec = [
       child(:source, %Membrane.File.Source{
         location: @input_path
       })
@@ -60,7 +60,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
       |> child(:sink, Sink)
     ]
 
-    pipeline = Pipeline.start_link_supervised!(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
     assert_start_of_stream(pipeline, :encoder, :input)
   end
 end

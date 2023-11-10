@@ -23,15 +23,13 @@ defmodule Membrane.Opus.Decoder do
               ]
 
   def_input_pad :input,
-    demand_unit: :buffers,
-    demand_mode: :auto,
     accepted_format:
       any_of(
         %Opus{self_delimiting?: false},
         %RemoteStream{type: :packetized, content_format: format} when format in [Opus, nil]
       )
 
-  def_output_pad :output, accepted_format: %RawAudio{sample_format: :s16le}, demand_mode: :auto
+  def_output_pad :output, accepted_format: %RawAudio{sample_format: :s16le}
 
   @impl true
   def handle_init(_ctx, %__MODULE__{} = options) do
@@ -54,7 +52,7 @@ defmodule Membrane.Opus.Decoder do
   end
 
   @impl true
-  def handle_process(:input, buffer, _ctx, state) do
+  def handle_buffer(:input, buffer, _ctx, state) do
     if buffer.payload === "" do
       Membrane.Logger.warning("Payload is empty.")
       {[], state}
