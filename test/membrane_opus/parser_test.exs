@@ -94,13 +94,13 @@ defmodule Membrane.Opus.Parser.ParserTest do
       @fixtures
       |> Enum.map(fn fixture -> fixture.normal end)
 
-    structure = [
+    spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
       |> child(:parser, Parser)
       |> child(:sink, Sink)
     ]
 
-    pipeline = Pipeline.start_link_supervised!(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
 
     do_test(pipeline, false)
   end
@@ -110,13 +110,13 @@ defmodule Membrane.Opus.Parser.ParserTest do
       @fixtures
       |> Enum.map(fn fixture -> fixture.normal end)
 
-    structure = [
+    spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
       |> child(:parser, %Parser{delimitation: :delimit})
       |> child(:sink, Sink)
     ]
 
-    pipeline = Pipeline.start_link_supervised!(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
 
     do_test(pipeline, true)
   end
@@ -126,13 +126,13 @@ defmodule Membrane.Opus.Parser.ParserTest do
       @fixtures
       |> Enum.map(fn fixture -> fixture.delimited end)
 
-    structure = [
+    spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
       |> child(:parser, %Parser{input_delimitted?: true})
       |> child(:sink, Sink)
     ]
 
-    pipeline = Pipeline.start_link_supervised!(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
 
     do_test(pipeline, true)
   end
@@ -142,13 +142,13 @@ defmodule Membrane.Opus.Parser.ParserTest do
       @fixtures
       |> Enum.map(fn fixture -> fixture.delimited end)
 
-    structure = [
+    spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
       |> child(:parser, %Parser{delimitation: :undelimit, input_delimitted?: true})
       |> child(:sink, Sink)
     ]
 
-    pipeline = Pipeline.start_link_supervised!(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
 
     do_test(pipeline, false)
   end
@@ -187,6 +187,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)
 
-    Pipeline.terminate(pipeline, blocking?: true)
+    Pipeline.terminate(pipeline)
   end
 end

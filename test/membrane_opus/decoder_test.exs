@@ -13,7 +13,7 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
     import Membrane.ChildrenSpec
     import Membrane.Testing.Assertions
 
-    structure = [
+    spec = [
       child(:source, %Testing.Source{
         output: @sample_opus_packets,
         stream_format: %RemoteStream{type: :packetized}
@@ -22,7 +22,7 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
       |> child(:sink, Testing.Sink)
     ]
 
-    pipeline = Pipeline.start_link_supervised!(structure: structure)
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
 
     assert_start_of_stream(pipeline, :sink)
 
@@ -34,6 +34,6 @@ defmodule Membrane.Opus.Decoder.DecoderTest do
     assert_end_of_stream(pipeline, :sink)
     refute_sink_buffer(pipeline, :sink, _, 0)
 
-    Membrane.Pipeline.terminate(pipeline, blocking?: true)
+    Membrane.Pipeline.terminate(pipeline)
   end
 end

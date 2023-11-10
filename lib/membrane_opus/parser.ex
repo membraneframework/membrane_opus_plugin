@@ -38,19 +38,17 @@ defmodule Membrane.Opus.Parser do
                 default: false,
                 description: """
                 If you know that the input is self-delimitted? but you're reading from
-                some element that isn't sending the correct structure, you can set this
+                some element that isn't sending the correct spec, you can set this
                 to true to force the Parser to assume the input is self-delimitted? and
                 ignore upstream stream_format information on self-delimitation.
                 """
               ]
 
   def_input_pad :input,
-    demand_unit: :buffers,
-    demand_mode: :auto,
     accepted_format:
       any_of(Opus, %RemoteStream{content_format: format} when format in [Opus, nil])
 
-  def_output_pad :output, accepted_format: Opus, demand_mode: :auto
+  def_output_pad :output, accepted_format: Opus
 
   @impl true
   def handle_init(_ctx, %__MODULE__{} = options) do
@@ -67,12 +65,12 @@ defmodule Membrane.Opus.Parser do
 
   @impl true
   def handle_stream_format(:input, _stream_format, _ctx, state) do
-    # ignore stream_format, they will be sent in handle_process
+    # ignore stream_formats, they will be sent in handle_buffer
     {[], state}
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: data}, ctx, state) do
+  def handle_buffer(:input, %Buffer{payload: data}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 

@@ -39,8 +39,6 @@ defmodule Membrane.Opus.Encoder do
               ]
 
   def_input_pad :input,
-    demand_unit: :bytes,
-    demand_mode: :auto,
     accepted_format:
       any_of(
         %RawAudio{
@@ -52,7 +50,7 @@ defmodule Membrane.Opus.Encoder do
         Membrane.RemoteStream
       )
 
-  def_output_pad :output, accepted_format: %Opus{self_delimiting?: false}, demand_mode: :auto
+  def_output_pad :output, accepted_format: %Opus{self_delimiting?: false}
 
   @impl true
   def handle_init(_ctx, %__MODULE__{} = options) do
@@ -134,7 +132,7 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: data}, _ctx, state) do
+  def handle_buffer(:input, %Buffer{payload: data}, _ctx, state) do
     case encode_buffer(state.queue <> data, state, frame_size_in_bytes(state)) do
       {:ok, {[], rest}} ->
         # nothing was encoded
