@@ -38,7 +38,7 @@ defmodule Membrane.Opus.Parser do
                 default: false,
                 description: """
                 If you know that the input is self-delimitted? but you're reading from
-                some element that isn't sending the correct spec, you can set this
+                some element that isn't sending the correct structure, you can set this
                 to true to force the Parser to assume the input is self-delimitted? and
                 ignore upstream stream_format information on self-delimitation.
                 """
