@@ -1,7 +1,7 @@
 defmodule Membrane.Opus.Plugin.Mixfile do
   use Mix.Project
 
-  @version "0.18.1"
+  @version "0.19.0"
   @github_url "https://github.com/membraneframework/membrane_opus_plugin"
 
   def project do
@@ -36,17 +36,17 @@ defmodule Membrane.Opus.Plugin.Mixfile do
   defp deps do
     [
       {:bunch, "~> 1.3"},
-      {:membrane_core, "~> 0.12.3"},
+      {:membrane_core, "~> 1.0"},
       {:membrane_opus_format, "~> 0.3.0"},
-      {:membrane_raw_audio_format, "~> 0.11.0"},
+      {:membrane_raw_audio_format, "~> 0.12.0"},
       {:unifex, "~> 1.0"},
-      {:membrane_common_c, "~> 0.15.0"},
+      {:membrane_common_c, "~> 0.16.0"},
       {:bundlex, "~> 1.2"},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:credo, ">= 0.0.0", only: :dev, runtime: false},
       {:membrane_file_plugin, "~> 0.13.0", only: :test},
-      {:membrane_raw_audio_parser_plugin, "~> 0.3.0", only: :test}
+      {:membrane_raw_audio_parser_plugin, "~> 0.4.0", only: :test}
     ]
   end
 
