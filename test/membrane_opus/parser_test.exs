@@ -17,7 +17,8 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<4, 0>>,
       channels: 2,
       duration: 0,
-      pts: 0
+      pts: 0,
+      generate_best_effort_timestamps: true
     },
     %{
       desc: "code 1",
@@ -25,7 +26,8 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<121, 2, 0, 0, 0, 0>>,
       channels: 1,
       duration: 40 |> milliseconds(),
-      pts: 0
+      pts: 0,
+      generate_best_effort_timestamps: true
     },
     %{
       desc: "code 2",
@@ -33,7 +35,8 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<198, 1, 3, 0, 0, 0, 0>>,
       channels: 2,
       duration: 5 |> milliseconds(),
-      pts: 40 |> milliseconds()
+      pts: 40 |> milliseconds(),
+      generate_best_effort_timestamps: true
     },
     %{
       desc: "code 3 cbr, no padding",
@@ -41,7 +44,8 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<199, 3, 1, 0, 0, 0>>,
       channels: 2,
       duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: 45 |> milliseconds()
+      pts: 45 |> milliseconds(),
+      generate_best_effort_timestamps: true
     },
     %{
       desc: "code 3 cbr, padding",
@@ -49,7 +53,8 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<199, 67, 2, 1, 0, 0, 0, 0, 0>>,
       channels: 2,
       duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: (52.5 * 1_000_000) |> trunc() |> nanoseconds()
+      pts: (52.5 * 1_000_000) |> trunc() |> nanoseconds(),
+      generate_best_effort_timestamps: true
     },
     %{
       desc: "code 3 vbr, no padding",
@@ -57,7 +62,17 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<199, 131, 1, 2, 1, 0, 0, 0, 0>>,
       channels: 2,
       duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: 60 |> milliseconds()
+      pts: 60 |> milliseconds(),
+      generate_best_effort_timestamps: true
+    },
+    %{
+      desc: "code 3 vbr, conc",
+      normal: <<199, 131, 1, 2, 0, 0, 0, 0>>,
+      delimited: <<199, 131, 1, 2, 1, 0, 0, 0, 0, 199, 67, 2, 1, 0, 0, 0, 0, 0>>,
+      channels: 2,
+      duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
+      pts: 60 |> milliseconds(),
+      generate_best_effort_timestamps: true
     },
     %{
       desc: "code 3 vbr, no padding, long length",
@@ -85,10 +100,10 @@ defmodule Membrane.Opus.Parser.ParserTest do
           0, 0, 3, 3, 3>>,
       channels: 2,
       duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: (67.5 * 1_000_000) |> trunc() |> nanoseconds()
+      pts: (67.5 * 1_000_000) |> trunc() |> nanoseconds(),
+      generate_best_effort_timestamps: true
     }
   ]
-
   test "non-self-delimiting input and output" do
     inputs =
       @fixtures
@@ -112,7 +127,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
-      |> child(:parser, %Parser{delimitation: :delimit})
+      |> child(:parser, %Parser{delimitation: :delimit, generate_best_effort_timestamps: true})
       |> child(:sink, Sink)
     ]
 
@@ -128,7 +143,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
-      |> child(:parser, %Parser{input_delimitted?: true})
+      |> child(:parser, %Parser{input_delimitted?: true,generate_best_effort_timestamps: true})
       |> child(:sink, Sink)
     ]
 
@@ -144,7 +159,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
-      |> child(:parser, %Parser{delimitation: :undelimit, input_delimitted?: true})
+      |> child(:parser, %Parser{delimitation: :undelimit, input_delimitted?: true, generate_best_effort_timestamps: true})
       |> child(:sink, Sink)
     ]
 
@@ -155,7 +170,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
   defp do_test(pipeline, self_delimiting?) do
     assert_start_of_stream(pipeline, :sink)
-
     @fixtures
     |> Enum.each(fn fixture ->
       expected_buffer = %Buffer{

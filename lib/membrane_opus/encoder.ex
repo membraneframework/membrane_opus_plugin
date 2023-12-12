@@ -36,6 +36,13 @@ defmodule Membrane.Opus.Encoder do
                 description: """
                 Input type - used to set input sample rate and channels.
                 """
+              ],
+              generate_best_effort_timestamps: [
+                spec: boolean(),
+                default: false,
+                description: """
+                generate_best_effort_timestamps - missing description
+                """
               ]
 
   def_input_pad :input,
@@ -205,6 +212,7 @@ defmodule Membrane.Opus.Encoder do
     # Encode a single frame because buffer contains at least one frame
     <<raw_frame::binary-size(target_byte_size), rest::binary>> = raw_buffer
     {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, frame_size(state))
+    IO.inspect(raw_encoded)
 
     # maybe keep encoding if there are more frames
     encode_buffer(
