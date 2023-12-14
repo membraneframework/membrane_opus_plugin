@@ -63,7 +63,7 @@ defmodule Membrane.Opus.Parser do
       options
       |> Map.from_struct()
       |> Map.merge(%{
-        pts: 0,
+        pts: 0, # if generate_best_effort_timestamps pts = nil (jak to zapisac?)
         buffer: <<>>
       })
 

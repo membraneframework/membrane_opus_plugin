@@ -11,8 +11,20 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   @input_path "test/fixtures/raw_packets"
   @reference_path "test/fixtures/encoder_output_reference"
 
+  defp raw_packets() do
+    File.read!(@input_path)
+    |> String.split()
+    |> Enum.zip(0..2)
+    |> Enum.map(fn {payload, index} ->
+      %Membrane.Buffer{payload: payload, pts: index * 20000000}
+      # %Membrane.Buffer{payload: payload, pts: nil}
+
+    end)
+  end
+
   defp setup_pipeline(output_path) do
     on_exit(fn -> File.rm(output_path) end)
+
 
     spec = [
       child(:source, %Membrane.File.Source{
@@ -51,9 +63,10 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   @tag :a
   test "encoder works with stream format received on :input pad" do
     spec = [
-      child(:source, %Membrane.File.Source{
-        location: @input_path
-      })
+      # child(:source, %Membrane.File.Source{
+      #   location: @input_path
+      # })
+      child(:source, %Membrane.Testing.Source{output: raw_packets()})
       |> child(:parser, %Membrane.RawAudioParser{
         stream_format: %Membrane.RawAudio{channels: 2, sample_format: :s16le, sample_rate: 48_000}
       })

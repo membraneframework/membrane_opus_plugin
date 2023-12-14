@@ -134,7 +134,16 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, _ctx, state) do
-    case encode_buffer(state.queue <> data, %{state | pts: pts}, frame_size_in_bytes(state)) do
+    # IO.inspect(state.pts, label: "handle_buffer state.pts")
+    # IO.inspect(pts, label: "handle_buffer pts")
+    pepare_state = fn state, pts ->
+      if state.pts == nil do
+        %{state | pts: pts}
+      else
+        state
+      end
+    end
+    case encode_buffer(state.queue <> data, pepare_state.(state, pts), frame_size_in_bytes(state)) do
       {:ok, {[], rest}, new_state} ->
         # nothing was encoded
         {[], %{state | queue: rest, pts: new_state.pts}}
@@ -142,6 +151,7 @@ defmodule Membrane.Opus.Encoder do
       {:ok, {encoded_buffers, rest}, new_state} ->
         # something was encoded
         IO.inspect(encoded_buffers, label: "encoded_buffers")
+        # IO.inspect(new_state.pts, label: "new_state.pts")
         {[buffer: {:output, encoded_buffers}], %{state | queue: rest, pts: new_state.pts }}
     end
   end
@@ -227,6 +237,7 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp update_state_pts(state, raw_frame) do
+    # IO.inspect(state.pts, label: "state.pts")
     if state.pts == nil do
       state
     else
