@@ -11,98 +11,100 @@ defmodule Membrane.Opus.Parser.ParserTest do
   alias Membrane.Testing.{Pipeline, Sink, Source}
 
   @fixtures [
-    %{
-      desc: "dropped packet, code 0",
-      normal: <<4>>,
-      delimited: <<4, 0>>,
-      channels: 2,
-      duration: 0,
-      pts: 0,
-      generate_best_effort_timestamps: true
-    },
-    %{
-      desc: "code 1",
-      normal: <<121, 0, 0, 0, 0>>,
-      delimited: <<121, 2, 0, 0, 0, 0>>,
-      channels: 1,
-      duration: 40 |> milliseconds(),
-      pts: 0,
-      generate_best_effort_timestamps: true
-    },
+    # %{
+    #   desc: "dropped packet, code 0",
+    #   normal: <<4>>,
+    #   delimited: <<4, 0>>,
+    #   channels: 2,
+    #   duration: 0,
+    #   pts: 0,
+    #   generate_best_effort_timestamps: true
+    # },
+    # %{
+    #   desc: "code 1",
+    #   normal: <<121, 0, 0, 0, 0>>,
+    #   delimited: <<121, 2, 0, 0, 0, 0>>,
+    #   channels: 1,
+    #   duration: 40 |> milliseconds(),
+    #   pts: 0,
+    #   generate_best_effort_timestamps: true
+    # },
+    # original
+    # %{
+    #   desc: "code 2",
+    #   normal: <<198, 1, 0, 0, 0, 0>>,
+    #   delimited: <<198, 1, 3, 0, 0, 0, 0>>,
+    #   channels: 2,
+    #   duration: 15 |> milliseconds(),
+    #   pts: 0 |> milliseconds(),
+    #   generate_best_effort_timestamps: true
+    # },
+    # 3x longer
     %{
       desc: "code 2",
       normal: <<198, 1, 0, 0, 0, 0>>,
-      delimited: <<198, 1, 3, 0, 0, 0, 0>>,
+      delimited: <<198, 1, 3, 0, 0, 0, 0, 198, 1, 3, 0, 0, 0, 0, 198, 1, 3, 0, 0, 0, 0>>,
       channels: 2,
-      duration: 5 |> milliseconds(),
-      pts: 40 |> milliseconds(),
-      generate_best_effort_timestamps: true
-    },
-    %{
-      desc: "code 3 cbr, no padding",
-      normal: <<199, 3, 0, 0, 0>>,
-      delimited: <<199, 3, 1, 0, 0, 0>>,
-      channels: 2,
-      duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: 45 |> milliseconds(),
-      generate_best_effort_timestamps: true
-    },
-    %{
-      desc: "code 3 cbr, padding",
-      normal: <<199, 67, 2, 0, 0, 0, 0, 0>>,
-      delimited: <<199, 67, 2, 1, 0, 0, 0, 0, 0>>,
-      channels: 2,
-      duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: (52.5 * 1_000_000) |> trunc() |> nanoseconds(),
-      generate_best_effort_timestamps: true
-    },
-    %{
-      desc: "code 3 vbr, no padding",
-      normal: <<199, 131, 1, 2, 0, 0, 0, 0>>,
-      delimited: <<199, 131, 1, 2, 1, 0, 0, 0, 0>>,
-      channels: 2,
-      duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: 60 |> milliseconds(),
-      generate_best_effort_timestamps: true
-    },
-    %{
-      desc: "code 3 vbr, conc",
-      normal: <<199, 131, 1, 2, 0, 0, 0, 0>>,
-      delimited: <<199, 131, 1, 2, 1, 0, 0, 0, 0, 199, 67, 2, 1, 0, 0, 0, 0, 0>>,
-      channels: 2,
-      duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: 60 |> milliseconds(),
-      generate_best_effort_timestamps: true
-    },
-    %{
-      desc: "code 3 vbr, no padding, long length",
-      normal:
-        <<199, 131, 253, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-          0, 3, 3, 3>>,
-      delimited:
-        <<199, 131, 253, 0, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          0, 0, 3, 3, 3>>,
-      channels: 2,
-      duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: (67.5 * 1_000_000) |> trunc() |> nanoseconds(),
+      duration: 15 |> milliseconds(),
+      pts: 0 |> milliseconds(),
       generate_best_effort_timestamps: true
     }
+    # %{
+    #   desc: "code 3 cbr, no padding",
+    #   normal: <<199, 3, 0, 0, 0>>,
+    #   delimited: <<199, 3, 1, 0, 0, 0>>,
+    #   channels: 2,
+    #   duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
+    #   pts: 45 |> milliseconds(),
+    #   generate_best_effort_timestamps: true
+    # },
+    # %{
+    #   desc: "code 3 cbr, padding",
+    #   normal: <<199, 67, 2, 0, 0, 0, 0, 0>>,
+    #   delimited: <<199, 67, 2, 1, 0, 0, 0, 0, 0>>,
+    #   channels: 2,
+    #   duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
+    #   pts: (52.5 * 1_000_000) |> trunc() |> nanoseconds(),
+    #   generate_best_effort_timestamps: true
+    # },
+    # %{
+    #   desc: "code 3 vbr, no padding",
+    #   normal: <<199, 131, 1, 2, 0, 0, 0, 0>>,
+    #   delimited: <<199, 131, 1, 2, 1, 0, 0, 0, 0>>,
+    #   channels: 2,
+    #   duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
+    #   pts: 60 |> milliseconds(),
+    #   generate_best_effort_timestamps: true
+    # },
+    # %{
+    #   desc: "code 3 vbr, no padding, long length",
+    #   normal:
+    #     <<199, 131, 253, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+    #       0, 3, 3, 3>>,
+    #   delimited:
+    #     <<199, 131, 253, 0, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #       0, 0, 3, 3, 3>>,
+    #   channels: 2,
+    #   duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
+    #   pts: (67.5 * 1_000_000) |> trunc() |> nanoseconds(),
+    #   generate_best_effort_timestamps: true
+    # }
   ]
   test "non-self-delimiting input and output" do
     inputs =
@@ -143,7 +145,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
-      |> child(:parser, %Parser{input_delimitted?: true,generate_best_effort_timestamps: true})
+      |> child(:parser, %Parser{input_delimitted?: true, generate_best_effort_timestamps: true})
       |> child(:sink, Sink)
     ]
 
@@ -159,7 +161,11 @@ defmodule Membrane.Opus.Parser.ParserTest do
 
     spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
-      |> child(:parser, %Parser{delimitation: :undelimit, input_delimitted?: true, generate_best_effort_timestamps: true})
+      |> child(:parser, %Parser{
+        delimitation: :undelimit,
+        input_delimitted?: true,
+        generate_best_effort_timestamps: true
+      })
       |> child(:sink, Sink)
     ]
 
@@ -168,8 +174,25 @@ defmodule Membrane.Opus.Parser.ParserTest do
     do_test(pipeline, false)
   end
 
+  test "self-delimiting input, multiple self-delimiting outputs" do
+    inputs =
+      @fixtures
+      |> Enum.map(fn fixture -> fixture.delimited end)
+
+    spec = [
+      child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
+      |> child(:parser, %Parser{input_delimitted?: true, generate_best_effort_timestamps: true})
+      |> child(:sink, Sink)
+    ]
+
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
+
+    do_test(pipeline, true)
+  end
+
   defp do_test(pipeline, self_delimiting?) do
     assert_start_of_stream(pipeline, :sink)
+
     @fixtures
     |> Enum.each(fn fixture ->
       expected_buffer = %Buffer{

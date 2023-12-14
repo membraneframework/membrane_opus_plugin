@@ -36,13 +36,6 @@ defmodule Membrane.Opus.Encoder do
                 description: """
                 Input type - used to set input sample rate and channels.
                 """
-              ],
-              generate_best_effort_timestamps: [
-                spec: boolean(),
-                default: false,
-                description: """
-                generate_best_effort_timestamps - missing description
-                """
               ]
 
   def_input_pad :input,
@@ -65,6 +58,7 @@ defmodule Membrane.Opus.Encoder do
       options
       |> Map.from_struct()
       |> Map.merge(%{
+        pts: nil,
         native: nil,
         queue: <<>>
       })
@@ -139,15 +133,16 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_buffer(:input, %Buffer{payload: data}, _ctx, state) do
-    case encode_buffer(state.queue <> data, state, frame_size_in_bytes(state)) do
-      {:ok, {[], rest}} ->
+  def handle_buffer(:input, %Buffer{payload: data, pts: pts}, _ctx, state) do
+    case encode_buffer(state.queue <> data, %{state | pts: pts}, frame_size_in_bytes(state)) do
+      {:ok, {[], rest}, new_state} ->
         # nothing was encoded
-        {[], %{state | queue: rest}}
+        {[], %{state | queue: rest, pts: new_state.pts}}
 
-      {:ok, {encoded_buffers, rest}} ->
+      {:ok, {encoded_buffers, rest}, new_state} ->
         # something was encoded
-        {[buffer: {:output, encoded_buffers}], %{state | queue: rest}}
+        IO.inspect(encoded_buffers, label: "encoded_buffers")
+        {[buffer: {:output, encoded_buffers}], %{state | queue: rest, pts: new_state.pts }}
     end
   end
 
@@ -210,21 +205,36 @@ defmodule Membrane.Opus.Encoder do
   defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames)
        when byte_size(raw_buffer) >= target_byte_size do
     # Encode a single frame because buffer contains at least one frame
+
     <<raw_frame::binary-size(target_byte_size), rest::binary>> = raw_buffer
     {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, frame_size(state))
-    IO.inspect(raw_encoded)
 
     # maybe keep encoding if there are more frames
+    out_buffer = [%Buffer{payload: raw_encoded, pts: state.pts} | encoded_frames]
+    new_state = update_state_pts(state, raw_frame)
+
     encode_buffer(
       rest,
-      state,
+      new_state,
       target_byte_size,
-      [%Buffer{payload: raw_encoded} | encoded_frames]
+      out_buffer
     )
   end
 
-  defp encode_buffer(raw_buffer, _state, _target_byte_size, encoded_frames) do
+  defp encode_buffer(raw_buffer, state, _target_byte_size, encoded_frames) do
     # Invariant for encode_buffer - return what we have encoded
-    {:ok, {encoded_frames |> Enum.reverse(), raw_buffer}}
+    {:ok, {encoded_frames |> Enum.reverse(), raw_buffer}, state}
+  end
+
+  defp update_state_pts(state, raw_frame) do
+    if state.pts == nil do
+      state
+    else
+      duration =
+        raw_frame
+        |> byte_size()
+        |> RawAudio.bytes_to_time(state.input_stream_format)
+      %{state | pts: state.pts + duration}
+    end
   end
 end

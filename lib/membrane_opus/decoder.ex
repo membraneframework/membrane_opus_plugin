@@ -53,18 +53,20 @@ defmodule Membrane.Opus.Decoder do
 
   @impl true
   def handle_buffer(:input, buffer, _ctx, state) do
+    IO.inspect(buffer, label: "buffer in")
+    buffer = %Buffer{buffer | pts: 2}
+
     if buffer.payload === "" do
       Membrane.Logger.warning("Payload is empty.")
       {[], state}
     else
-      IO.inspect(buffer.pts, label: "buffer in")
       {:ok, _config_number, stereo_flag, _frame_packing} = Util.parse_toc_byte(buffer.payload)
       channels = Util.parse_channels(stereo_flag)
       {stream_format, state} = maybe_make_native(channels, state)
 
       decoded = Native.decode_packet(state.native, buffer.payload)
       buffer = %Buffer{buffer | payload: decoded}
-      IO.inspect(buffer)
+      IO.inspect(buffer, label: "buffer out")
       {stream_format ++ [buffer: {:output, buffer}], state}
     end
   end

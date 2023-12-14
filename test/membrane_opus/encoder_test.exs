@@ -48,6 +48,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     Membrane.Pipeline.terminate(pipeline_pid)
   end
 
+  @tag :a
   test "encoder works with stream format received on :input pad" do
     spec = [
       child(:source, %Membrane.File.Source{
@@ -62,5 +63,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
 
     pipeline = Pipeline.start_link_supervised!(spec: spec)
     assert_start_of_stream(pipeline, :encoder, :input)
+
+    Pipeline.terminate(pipeline)
   end
 end
