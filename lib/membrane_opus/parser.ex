@@ -63,7 +63,6 @@ defmodule Membrane.Opus.Parser do
       options
       |> Map.from_struct()
       |> Map.merge(%{
-        pts: 0, # if generate_best_effort_timestamps pts = nil (jak to zapisac?)
         buffer: <<>>
       })
 
@@ -77,13 +76,14 @@ defmodule Membrane.Opus.Parser do
   end
 
   @impl true
-  def handle_buffer(:input, %Buffer{payload: data}, ctx, state) do
+  def handle_buffer(:input, %Buffer{payload: data, pts: pts}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
-
+      IO.inspect(pts, label: "pts in")
+      IO.inspect(state.generate_best_effort_timestamps, label: "generate_best_effort_timestamps")
     case maybe_parse(
            state.buffer <> data,
-           state.pts,
+           if pts == nil && state.generate_best_effort_timestamps do 0 else pts end,
            state.input_delimitted?,
            delimitation_processor,
            state.generate_best_effort_timestamps
@@ -108,7 +108,7 @@ defmodule Membrane.Opus.Parser do
               []
           end
 
-        {packet_actions, %{state | buffer: buffer, pts: pts}}
+        {packet_actions, %{state | buffer: buffer}}
 
       :error ->
         {{:error, "An error occured in parsing"}, state}
@@ -164,24 +164,11 @@ defmodule Membrane.Opus.Parser do
           duration: duration
         }
       }
-
-      IO.inspect(pts, label: "pts in")
-      IO.inspect(rest, label: "rest")
       IO.inspect(packet, label: "packet")
-
-      generate_pts = fn pts, duration, generate_best_effort_timestamps ->
-        IO.inspect(generate_best_effort_timestamps, label: "generate_best_effort_timestamps")
-
-        if generate_best_effort_timestamps do
-          pts + duration
-        else
-          pts + duration
-        end
-      end
 
       maybe_parse(
         rest,
-        generate_pts.(pts, duration, generate_best_effort_timestamps),
+        calculate_pts(pts,duration,generate_best_effort_timestamps),
         input_delimitted?,
         processor,
         generate_best_effort_timestamps,
@@ -207,6 +194,24 @@ defmodule Membrane.Opus.Parser do
          channels
        ) do
     {:ok, data, pts, packets |> Enum.reverse(), channels}
+  end
+
+  defp calculate_pts(pts, duration, generate_best_effort_timestamps) do
+    if generate_best_effort_timestamps do
+      # generowac nawet jak na wejsciu nil, zaczynac od zera
+      if pts == nil do
+        0
+      else
+        pts + duration
+      end
+    else
+      # dzialac tak jak encoder, jak jest nil to przepisac na wyjscie
+      if pts == nil do
+        nil
+      else
+        pts + duration
+      end
+    end
   end
 
   @spec rest_of_packet(data :: binary, expected_packet_size :: pos_integer) ::

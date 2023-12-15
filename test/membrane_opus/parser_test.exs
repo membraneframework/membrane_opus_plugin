@@ -18,7 +18,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     #   channels: 2,
     #   duration: 0,
     #   pts: 0,
-    #   generate_best_effort_timestamps: true
     # },
     # %{
     #   desc: "code 1",
@@ -27,7 +26,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     #   channels: 1,
     #   duration: 40 |> milliseconds(),
     #   pts: 0,
-    #   generate_best_effort_timestamps: true
     # },
     # original
     # %{
@@ -37,7 +35,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     #   channels: 2,
     #   duration: 15 |> milliseconds(),
     #   pts: 0 |> milliseconds(),
-    #   generate_best_effort_timestamps: true
     # },
     # 3x longer
     %{
@@ -46,8 +43,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<198, 1, 3, 0, 0, 0, 0, 198, 1, 3, 0, 0, 0, 0, 198, 1, 3, 0, 0, 0, 0>>,
       channels: 2,
       duration: 15 |> milliseconds(),
-      pts: 0 |> milliseconds(),
-      generate_best_effort_timestamps: true
+      pts: 60 |> milliseconds(),
     }
     # %{
     #   desc: "code 3 cbr, no padding",
@@ -56,7 +52,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     #   channels: 2,
     #   duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
     #   pts: 45 |> milliseconds(),
-    #   generate_best_effort_timestamps: true
     # },
     # %{
     #   desc: "code 3 cbr, padding",
@@ -65,7 +60,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     #   channels: 2,
     #   duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
     #   pts: (52.5 * 1_000_000) |> trunc() |> nanoseconds(),
-    #   generate_best_effort_timestamps: true
     # },
     # %{
     #   desc: "code 3 vbr, no padding",
@@ -74,7 +68,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     #   channels: 2,
     #   duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
     #   pts: 60 |> milliseconds(),
-    #   generate_best_effort_timestamps: true
     # },
     # %{
     #   desc: "code 3 vbr, no padding, long length",
@@ -103,7 +96,6 @@ defmodule Membrane.Opus.Parser.ParserTest do
     #   channels: 2,
     #   duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
     #   pts: (67.5 * 1_000_000) |> trunc() |> nanoseconds(),
-    #   generate_best_effort_timestamps: true
     # }
   ]
   test "non-self-delimiting input and output" do
@@ -177,11 +169,10 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "self-delimiting input, multiple self-delimiting outputs" do
     inputs =
       @fixtures
-      |> Enum.map(fn fixture -> fixture.delimited end)
-
+      |> Enum.map(fn fixture -> %Membrane.Buffer{payload: fixture.delimited, pts: fixture.pts } end)
     spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
-      |> child(:parser, %Parser{input_delimitted?: true, generate_best_effort_timestamps: true})
+      |> child(:parser, %Parser{input_delimitted?: true, generate_best_effort_timestamps: false})
       |> child(:sink, Sink)
     ]
 

@@ -135,7 +135,7 @@ defmodule Membrane.Opus.Encoder do
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, _ctx, state) do
     # IO.inspect(state.pts, label: "handle_buffer state.pts")
-    IO.inspect(pts, label: "handle_buffer pts")
+    # IO.inspect(pts, label: "handle_buffer pts")
     pepare_state = fn state, pts ->
       if state.pts == nil do
         %{state | pts: pts}
@@ -214,7 +214,7 @@ defmodule Membrane.Opus.Encoder do
   defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames)
        when byte_size(raw_buffer) >= target_byte_size do
     # Encode a single frame because buffer contains at least one frame
-
+    # IO.puts("encode_buffer")
     <<raw_frame::binary-size(target_byte_size), rest::binary>> = raw_buffer
     {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, frame_size(state))
 
