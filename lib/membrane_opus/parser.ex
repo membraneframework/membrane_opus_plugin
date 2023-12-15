@@ -79,16 +79,22 @@ defmodule Membrane.Opus.Parser do
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
-      IO.inspect(pts, label: "pts in")
-      IO.inspect(state.generate_best_effort_timestamps, label: "generate_best_effort_timestamps")
+
+    IO.inspect(pts, label: "pts in")
+    IO.inspect(state.generate_best_effort_timestamps, label: "generate_best_effort_timestamps")
+
     case maybe_parse(
            state.buffer <> data,
-           if pts == nil && state.generate_best_effort_timestamps do 0 else pts end,
+           if pts == nil && state.generate_best_effort_timestamps do
+             0
+           else
+             pts
+           end,
            state.input_delimitted?,
            delimitation_processor,
            state.generate_best_effort_timestamps
          ) do
-      {:ok, buffer, pts, packets, channels} ->
+      {:ok, buffer, packets, channels} ->
         stream_format = %Opus{
           self_delimiting?: self_delimiting?,
           channels: channels
@@ -164,11 +170,12 @@ defmodule Membrane.Opus.Parser do
           duration: duration
         }
       }
+
       IO.inspect(packet, label: "packet")
 
       maybe_parse(
         rest,
-        calculate_pts(pts,duration,generate_best_effort_timestamps),
+        calculate_pts(pts, duration, generate_best_effort_timestamps),
         input_delimitted?,
         processor,
         generate_best_effort_timestamps,
@@ -177,7 +184,7 @@ defmodule Membrane.Opus.Parser do
       )
     else
       {:error, :cont} ->
-        {:ok, data, pts, packets |> Enum.reverse(), channels}
+        {:ok, data, packets |> Enum.reverse(), channels}
 
       :error ->
         :error
@@ -186,14 +193,14 @@ defmodule Membrane.Opus.Parser do
 
   defp maybe_parse(
          data,
-         pts,
+         _pts,
          _input_delimitted?,
          _processor,
          _generate_best_effort_timestamps,
          packets,
          channels
        ) do
-    {:ok, data, pts, packets |> Enum.reverse(), channels}
+    {:ok, data, packets |> Enum.reverse(), channels}
   end
 
   defp calculate_pts(pts, duration, generate_best_effort_timestamps) do

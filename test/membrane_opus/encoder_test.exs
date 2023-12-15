@@ -16,15 +16,13 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     |> String.split()
     |> Enum.zip(0..2)
     |> Enum.map(fn {payload, index} ->
-      %Membrane.Buffer{payload: payload, pts: nil }
+      %Membrane.Buffer{payload: payload, pts: nil}
       # %Membrane.Buffer{payload: payload, pts: nil}
-
     end)
   end
 
   defp setup_pipeline(output_path) do
     on_exit(fn -> File.rm(output_path) end)
-
 
     spec = [
       child(:source, %Membrane.File.Source{

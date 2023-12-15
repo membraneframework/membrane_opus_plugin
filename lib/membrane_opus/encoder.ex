@@ -143,6 +143,7 @@ defmodule Membrane.Opus.Encoder do
         state
       end
     end
+
     case encode_buffer(state.queue <> data, pepare_state.(state, pts), frame_size_in_bytes(state)) do
       {:ok, {[], rest}, new_state} ->
         # nothing was encoded
@@ -151,7 +152,7 @@ defmodule Membrane.Opus.Encoder do
       {:ok, {encoded_buffers, rest}, new_state} ->
         # something was encoded
         IO.inspect(encoded_buffers, label: "encoded_buffers")
-        {[buffer: {:output, encoded_buffers}], %{state | queue: rest, pts: new_state.pts }}
+        {[buffer: {:output, encoded_buffers}], %{state | queue: rest, pts: new_state.pts}}
     end
   end
 
@@ -244,6 +245,7 @@ defmodule Membrane.Opus.Encoder do
         raw_frame
         |> byte_size()
         |> RawAudio.bytes_to_time(state.input_stream_format)
+
       %{state | pts: state.pts + duration}
     end
   end

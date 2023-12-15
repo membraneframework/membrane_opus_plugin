@@ -53,9 +53,6 @@ defmodule Membrane.Opus.Decoder do
 
   @impl true
   def handle_buffer(:input, buffer, _ctx, state) do
-    IO.inspect(buffer, label: "buffer in")
-    buffer = %Buffer{buffer | pts: 2}
-
     if buffer.payload === "" do
       Membrane.Logger.warning("Payload is empty.")
       {[], state}
@@ -66,7 +63,6 @@ defmodule Membrane.Opus.Decoder do
 
       decoded = Native.decode_packet(state.native, buffer.payload)
       buffer = %Buffer{buffer | payload: decoded}
-      IO.inspect(buffer, label: "buffer out")
       {stream_format ++ [buffer: {:output, buffer}], state}
     end
   end
