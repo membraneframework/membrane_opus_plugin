@@ -45,7 +45,7 @@ defmodule Membrane.Opus.Parser do
               ],
               generate_best_effort_timestamps: [
                 spec: boolean(),
-                default: false,
+                default: true,
                 description: """
                 generate_best_effort_timestamps - missing description
                 """
@@ -80,9 +80,6 @@ defmodule Membrane.Opus.Parser do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
-    IO.inspect(pts, label: "pts in")
-    IO.inspect(state.generate_best_effort_timestamps, label: "generate_best_effort_timestamps")
-
     case maybe_parse(
            state.buffer <> data,
            if pts == nil && state.generate_best_effort_timestamps do
@@ -99,7 +96,6 @@ defmodule Membrane.Opus.Parser do
           self_delimiting?: self_delimiting?,
           channels: channels
         }
-
         packets_len = length(packets)
 
         packet_actions =
@@ -113,8 +109,9 @@ defmodule Membrane.Opus.Parser do
             true ->
               []
           end
+        IO.inspect({packet_actions, %{state | buffer: buffer}}, label: "OUT")
 
-        {packet_actions, %{state | buffer: buffer}}
+
 
       :error ->
         {{:error, "An error occured in parsing"}, state}
@@ -158,11 +155,12 @@ defmodule Membrane.Opus.Parser do
          {:ok, _mode, _bandwidth, frame_duration} <-
            Util.parse_configuration(configuration_number),
          {:ok, header_size, frame_lengths, padding_size} <-
-           FrameLengths.parse(frame_packing, data, input_delimitted?),
+        FrameLengths.parse(frame_packing, data, input_delimitted?),
          expected_packet_size <- header_size + Enum.sum(frame_lengths) + padding_size,
          {:ok, raw_packet, rest} <- rest_of_packet(data, expected_packet_size) do
-      duration = elapsed_time(frame_lengths, frame_duration)
 
+      duration = elapsed_time(frame_lengths, frame_duration)
+      # IO.inspect(duration, label: "duration")
       packet = %Buffer{
         pts: pts,
         payload: processor.process(raw_packet, frame_lengths, header_size),
@@ -171,7 +169,7 @@ defmodule Membrane.Opus.Parser do
         }
       }
 
-      IO.inspect(packet, label: "packet")
+      # IO.inspect(packet, label: "packet")
 
       maybe_parse(
         rest,
