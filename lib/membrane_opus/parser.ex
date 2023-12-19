@@ -45,7 +45,7 @@ defmodule Membrane.Opus.Parser do
               ],
               generate_best_effort_timestamps: [
                 spec: boolean(),
-                default: true,
+                default: false,
                 description: """
                 generate_best_effort_timestamps - missing description
                 """
@@ -80,15 +80,13 @@ defmodule Membrane.Opus.Parser do
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
-    IO.inspect(pts, label: "PTS IN")
-    IO.inspect(state, label: "STATE IN")
 
     case maybe_parse(
            state.buffer <> data,
            if state.generate_best_effort_timestamps do
-            pts
+             pts
            else
-            state.pts
+             state.pts
            end,
            state.input_delimitted?,
            delimitation_processor,
@@ -113,7 +111,8 @@ defmodule Membrane.Opus.Parser do
             true ->
               []
           end
-          IO.inspect({packet_actions, %{state | buffer: buffer, pts: pts}}, label: "OUT")
+
+        {packet_actions, %{state | buffer: buffer, pts: pts}}
 
       :error ->
         {{:error, "An error occured in parsing"}, state}
@@ -131,9 +130,25 @@ defmodule Membrane.Opus.Parser do
           {:ok, remaining_buffer :: binary, pts :: Membrane.Time.t(), packets :: [Buffer.t()],
            channels :: 0..2, generate_best_effort_timestamps :: boolean()}
           | :error
-  defp maybe_parse(data, pts, input_delimitted?, processor, packets \\ [], channels \\ 0, generate_best_effort_timestamps)
+  defp maybe_parse(
+         data,
+         pts,
+         input_delimitted?,
+         processor,
+         packets \\ [],
+         channels \\ 0,
+         generate_best_effort_timestamps
+       )
 
-  defp maybe_parse(data, pts, input_delimitted?, processor, packets, channels, generate_best_effort_timestamps)
+  defp maybe_parse(
+         data,
+         pts,
+         input_delimitted?,
+         processor,
+         packets,
+         channels,
+         generate_best_effort_timestamps
+       )
        when byte_size(data) > 0 do
     with {:ok, configuration_number, stereo_flag, frame_packing} <- Util.parse_toc_byte(data),
          channels <- max(channels, Util.parse_channels(stereo_flag)),
@@ -152,7 +167,7 @@ defmodule Membrane.Opus.Parser do
           duration: duration
         }
       }
-      IO.inspect(pts, label: "PTS MAYBE PARSE")
+
       maybe_parse(
         rest,
         if generate_best_effort_timestamps do
@@ -179,7 +194,15 @@ defmodule Membrane.Opus.Parser do
     end
   end
 
-  defp maybe_parse(data, pts, _input_delimitted?, _processor, packets, channels, _generate_best_effort_timestamps) do
+  defp maybe_parse(
+         data,
+         pts,
+         _input_delimitted?,
+         _processor,
+         packets,
+         channels,
+         _generate_best_effort_timestamps
+       ) do
     {:ok, data, pts, packets |> Enum.reverse(), channels}
   end
 

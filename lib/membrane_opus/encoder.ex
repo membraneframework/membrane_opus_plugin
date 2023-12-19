@@ -151,7 +151,6 @@ defmodule Membrane.Opus.Encoder do
 
       {:ok, {encoded_buffers, rest}, new_state} ->
         # something was encoded
-        IO.inspect(encoded_buffers, label: "encoded_buffers")
         {[buffer: {:output, encoded_buffers}], %{state | queue: rest, pts: new_state.pts}}
     end
   end
