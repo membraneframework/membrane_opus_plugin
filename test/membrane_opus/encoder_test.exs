@@ -15,7 +15,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
     File.read!(@input_path)
     |> String.split()
     |> Enum.zip(0..2)
-    |> Enum.map(fn {payload, index} ->
+    |> Enum.map(fn {payload} ->
       %Membrane.Buffer{payload: payload, pts: nil}
     end)
   end
