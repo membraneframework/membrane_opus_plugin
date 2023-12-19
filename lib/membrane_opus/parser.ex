@@ -45,7 +45,7 @@ defmodule Membrane.Opus.Parser do
               ],
               generate_best_effort_timestamps: [
                 spec: boolean(),
-                default: false,
+                default: true,
                 description: """
                 generate_best_effort_timestamps - missing description
                 """
@@ -152,18 +152,18 @@ defmodule Membrane.Opus.Parser do
           duration: duration
         }
       }
-
+      IO.inspect(pts, label: "PTS MAYBE PARSE")
       maybe_parse(
         rest,
         if generate_best_effort_timestamps do
           pts
-         else
+        else
           if pts == nil do
             nil
           else
             pts + duration
           end
-         end,
+        end,
         input_delimitted?,
         processor,
         [packet | packets],
