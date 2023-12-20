@@ -153,6 +153,86 @@ defmodule Membrane.Opus.Parser.ParserTest do
     do_test(pipeline, false)
   end
 
+  test "non-self-delimiting input and output, generate_best_effort_timestamps" do
+    inputs =
+      @fixtures
+      |> Enum.map(fn fixture -> %Buffer{
+        pts: fixture.pts,
+        payload: fixture.normal,
+        metadata: %{duration: fixture.duration}
+      } end)
+    IO.inspect(inputs, label: "INPUTS")
+    spec = [
+      child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
+      |> child(:parser, %Parser{generate_best_effort_timestamps: true})
+      |> child(:sink, Sink)
+    ]
+
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
+
+    do_test(pipeline, false)
+  end
+
+  test "non-self-delimiting input, self-delimiting output, generate_best_effort_timestamps" do
+    inputs =
+      @fixtures
+      |> Enum.map(fn fixture -> %Buffer{
+        pts: fixture.pts,
+        payload: fixture.normal,
+        metadata: %{duration: fixture.duration}
+      } end)
+
+    spec = [
+      child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
+      |> child(:parser, %Parser{delimitation: :delimit, generate_best_effort_timestamps: true})
+      |> child(:sink, Sink)
+    ]
+
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
+
+    do_test(pipeline, true)
+  end
+
+  test "self-delimiting input and output, generate_best_effort_timestamps" do
+    inputs =
+      @fixtures
+      |> Enum.map(fn fixture -> %Buffer{
+        pts: fixture.pts,
+        payload: fixture.delimited,
+        metadata: %{duration: fixture.duration}
+      } end)
+
+    spec = [
+      child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
+      |> child(:parser, %Parser{input_delimitted?: true, generate_best_effort_timestamps: true})
+      |> child(:sink, Sink)
+    ]
+
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
+
+    do_test(pipeline, true)
+  end
+
+  test "self-delimiting input, non-self-delimiting output, generate_best_effort_timestamps" do
+    inputs =
+      @fixtures
+      |> Enum.map(fn fixture -> %Buffer{
+        pts: fixture.pts,
+        payload: fixture.delimited,
+        metadata: %{duration: fixture.duration}
+      } end)
+
+    spec = [
+      child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
+      |> child(:parser, %Parser{delimitation: :undelimit, input_delimitted?: true, generate_best_effort_timestamps: true})
+      |> child(:sink, Sink)
+    ]
+
+    pipeline = Pipeline.start_link_supervised!(spec: spec)
+
+    do_test(pipeline, false)
+  end
+
   defp do_test(pipeline, self_delimiting?) do
     assert_start_of_stream(pipeline, :sink)
 
