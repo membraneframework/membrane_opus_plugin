@@ -156,12 +156,14 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "non-self-delimiting input and output, generate_best_effort_timestamps" do
     inputs =
       @fixtures
-      |> Enum.map(fn fixture -> %Buffer{
-        pts: fixture.pts,
-        payload: fixture.normal,
-        metadata: %{duration: fixture.duration}
-      } end)
-    IO.inspect(inputs, label: "INPUTS")
+      |> Enum.map(fn fixture ->
+        %Buffer{
+          pts: fixture.pts,
+          payload: fixture.normal,
+          metadata: %{duration: fixture.duration}
+        }
+      end)
+
     spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
       |> child(:parser, %Parser{generate_best_effort_timestamps: true})
@@ -176,11 +178,13 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "non-self-delimiting input, self-delimiting output, generate_best_effort_timestamps" do
     inputs =
       @fixtures
-      |> Enum.map(fn fixture -> %Buffer{
-        pts: fixture.pts,
-        payload: fixture.normal,
-        metadata: %{duration: fixture.duration}
-      } end)
+      |> Enum.map(fn fixture ->
+        %Buffer{
+          pts: fixture.pts,
+          payload: fixture.normal,
+          metadata: %{duration: fixture.duration}
+        }
+      end)
 
     spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
@@ -196,11 +200,13 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "self-delimiting input and output, generate_best_effort_timestamps" do
     inputs =
       @fixtures
-      |> Enum.map(fn fixture -> %Buffer{
-        pts: fixture.pts,
-        payload: fixture.delimited,
-        metadata: %{duration: fixture.duration}
-      } end)
+      |> Enum.map(fn fixture ->
+        %Buffer{
+          pts: fixture.pts,
+          payload: fixture.delimited,
+          metadata: %{duration: fixture.duration}
+        }
+      end)
 
     spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
@@ -216,15 +222,21 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "self-delimiting input, non-self-delimiting output, generate_best_effort_timestamps" do
     inputs =
       @fixtures
-      |> Enum.map(fn fixture -> %Buffer{
-        pts: fixture.pts,
-        payload: fixture.delimited,
-        metadata: %{duration: fixture.duration}
-      } end)
+      |> Enum.map(fn fixture ->
+        %Buffer{
+          pts: fixture.pts,
+          payload: fixture.delimited,
+          metadata: %{duration: fixture.duration}
+        }
+      end)
 
     spec = [
       child(:source, %Source{output: inputs, stream_format: %RemoteStream{type: :bytestream}})
-      |> child(:parser, %Parser{delimitation: :undelimit, input_delimitted?: true, generate_best_effort_timestamps: true})
+      |> child(:parser, %Parser{
+        delimitation: :undelimit,
+        input_delimitted?: true,
+        generate_best_effort_timestamps: true
+      })
       |> child(:sink, Sink)
     ]
 

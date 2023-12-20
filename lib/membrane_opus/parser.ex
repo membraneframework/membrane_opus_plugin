@@ -112,7 +112,7 @@ defmodule Membrane.Opus.Parser do
               []
           end
 
-        IO.inspect({packet_actions, %{state | buffer: buffer, pts: pts}})
+        {packet_actions, %{state | buffer: buffer, pts: pts}}
 
       :error ->
         {{:error, "An error occured in parsing"}, state}
