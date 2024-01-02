@@ -142,7 +142,18 @@ defmodule Membrane.Opus.Encoder do
           {[{:buffer, {any(), any()}}],
            %{:pts => any(), :queue => bitstring(), optional(any()) => any()}}
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, _ctx, state) do
-    case encode_buffer(state.queue <> data, %{state | pts: pts}, frame_size_in_bytes(state)) do
+    prepared_state =
+      if state.pts == nil do
+        %{state | pts: pts}
+      else
+        state
+      end
+
+    case encode_buffer(
+           state.queue <> data,
+           prepared_state,
+           frame_size_in_bytes(state)
+         ) do
       {:ok, [], state} ->
         # nothing was encoded
         {[], state}

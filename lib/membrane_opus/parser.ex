@@ -82,14 +82,13 @@ defmodule Membrane.Opus.Parser do
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
-    IO.inspect(pts, label: "input pts")
+
     case maybe_parse(
            state.buffer <> data,
-           cond do
-            state.generate_best_effort_timestamps? ->
-              state.pts
-            true ->
-              pts
+           if state.generate_best_effort_timestamps? do
+             state.pts
+           else
+             pts
            end,
            state.input_delimitted?,
            delimitation_processor,
@@ -115,7 +114,7 @@ defmodule Membrane.Opus.Parser do
               []
           end
 
-        IO.inspect({packet_actions, %{state | buffer: buffer, pts: pts}}, label: "OUTPUT")
+        {packet_actions, %{state | buffer: buffer, pts: pts}}
 
       :error ->
         {{:error, "An error occured in parsing"}, state}
@@ -173,11 +172,10 @@ defmodule Membrane.Opus.Parser do
 
       maybe_parse(
         rest,
-        cond do
-          pts == nil ->
-            nil
-          true ->
-            pts + duration
+        if pts == nil do
+          nil
+        else
+          pts + duration
         end,
         input_delimitted?,
         processor,
