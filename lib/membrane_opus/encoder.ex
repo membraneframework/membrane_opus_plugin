@@ -133,23 +133,23 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
+  @spec handle_buffer(:input, Membrane.Buffer.t(), any(), %{
+          :input_stream_format => Membrane.RawAudio.t(),
+          :pts => any(),
+          :queue => binary(),
+          optional(any()) => any()
+        }) ::
+          {[{:buffer, {any(), any()}}],
+           %{:pts => any(), :queue => bitstring(), optional(any()) => any()}}
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, _ctx, state) do
-    pepare_state = fn state, pts ->
-      if state.pts == nil do
-        %{state | pts: pts}
-      else
-        state
-      end
-    end
-
-    case encode_buffer(state.queue <> data, pepare_state.(state, pts), frame_size_in_bytes(state)) do
-      {:ok, {[], rest}, new_state} ->
+    case encode_buffer(state.queue <> data, %{state | pts: pts}, frame_size_in_bytes(state)) do
+      {:ok, [], state} ->
         # nothing was encoded
-        {[], %{state | queue: rest, pts: new_state.pts}}
+        {[], state}
 
-      {:ok, {encoded_buffers, rest}, new_state} ->
+      {:ok, encoded_buffers, state} ->
         # something was encoded
-        {[buffer: {:output, encoded_buffers}], %{state | queue: rest, pts: new_state.pts}}
+        {[buffer: {:output, encoded_buffers}], state}
     end
   end
 
@@ -217,11 +217,10 @@ defmodule Membrane.Opus.Encoder do
 
     # maybe keep encoding if there are more frames
     out_buffer = [%Buffer{payload: raw_encoded, pts: state.pts} | encoded_frames]
-    new_state = update_state_pts(state, raw_frame)
 
     encode_buffer(
       rest,
-      new_state,
+      update_state_pts(state, raw_frame),
       target_byte_size,
       out_buffer
     )
@@ -229,7 +228,7 @@ defmodule Membrane.Opus.Encoder do
 
   defp encode_buffer(raw_buffer, state, _target_byte_size, encoded_frames) do
     # Invariant for encode_buffer - return what we have encoded
-    {:ok, {encoded_frames |> Enum.reverse(), raw_buffer}, state}
+    {:ok, encoded_frames |> Enum.reverse(), %{state | queue: raw_buffer}}
   end
 
   defp update_state_pts(state, raw_frame) do
