@@ -135,16 +135,19 @@ defmodule Membrane.Opus.Encoder do
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, _ctx, state) do
     # jesli state.pts_current ma jakas wartosc i queue nie jest puste to trzeba sprawdzic czy input pts == state.current_pts
-    prepared_state = cond do
-      state.queue == <<>> ->
-        %{state | pts_current: pts}
-      state.pts_current != pts ->
-        raise """
-        PTS values are not continuous
-        """
-      true ->
-        state
-    end
+    prepared_state =
+      cond do
+        state.queue == <<>> ->
+          %{state | pts_current: pts}
+
+        state.pts_current != pts ->
+          raise """
+          PTS values are not continuous
+          """
+
+        true ->
+          state
+      end
 
     case encode_buffer(
            state.queue <> data,
@@ -157,8 +160,7 @@ defmodule Membrane.Opus.Encoder do
 
       {:ok, encoded_buffers, state} ->
         # something was encoded
-        IO.inspect(pts, label: "input pts")
-        IO.inspect({[buffer: {:output, encoded_buffers}], state})
+        {[buffer: {:output, encoded_buffers}], state}
     end
   end
 
@@ -226,6 +228,7 @@ defmodule Membrane.Opus.Encoder do
 
     # maybe keep encoding if there are more frames
     out_buffer = [%Buffer{payload: raw_encoded, pts: state.pts_current} | encoded_frames]
+
     encode_buffer(
       rest,
       update_state_pts(state, raw_frame),
@@ -240,15 +243,17 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp update_state_pts(state, raw_frame) do
-    new_pts = if state.pts_current == nil do
-      nil
-    else
-      duration =
-        raw_frame
-        |> byte_size()
-        |> RawAudio.bytes_to_time(state.input_stream_format)
-      state.pts_current + duration
-    end
+    new_pts =
+      if state.pts_current == nil do
+        nil
+      else
+        duration =
+          raw_frame
+          |> byte_size()
+          |> RawAudio.bytes_to_time(state.input_stream_format)
+
+        state.pts_current + duration
+      end
 
     %{state | pts_current: new_pts}
   end

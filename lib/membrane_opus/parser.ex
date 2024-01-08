@@ -83,18 +83,23 @@ defmodule Membrane.Opus.Parser do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
-      prepared_state = cond do
+    prepared_state =
+      cond do
         state.generate_best_effort_timestamps? and state.pts_current == nil ->
           %{state | pts_current: 0}
+
         !state.generate_best_effort_timestamps? and state.queue == <<>> ->
           %{state | pts_current: pts}
+
         !state.generate_best_effort_timestamps? and state.pts_current != pts ->
           raise """
           PTS values are not continuous
           """
+
         true ->
           state
       end
+
     case maybe_parse(
            state.queue <> data,
            delimitation_processor,
@@ -160,6 +165,7 @@ defmodule Membrane.Opus.Parser do
           duration: duration
         }
       }
+
       maybe_parse(
         rest,
         processor,
