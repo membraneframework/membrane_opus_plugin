@@ -65,7 +65,7 @@ defmodule Membrane.Opus.Parser do
       options
       |> Map.from_struct()
       |> Map.merge(%{
-        pts: 0,
+        pts_current: nil,
         buffer: <<>>
       })
 
@@ -82,19 +82,25 @@ defmodule Membrane.Opus.Parser do
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
-
+      prepared_state = cond do
+        state.generate_best_effort_timestamps? and state.pts_current == nil ->
+          %{state | pts_current: 0}
+        !state.generate_best_effort_timestamps? and state.buffer == <<>> ->
+          %{state | pts_current: pts}
+        !state.generate_best_effort_timestamps? and state.pts_current != pts ->
+          raise """
+          PTS values are not continuous
+          """
+        true ->
+          state
+      end
     case maybe_parse(
            state.buffer <> data,
-           if state.generate_best_effort_timestamps? do
-             state.pts
-           else
-             pts
-           end,
+           prepared_state.pts_current,
            state.input_delimitted?,
-           delimitation_processor,
-           state.generate_best_effort_timestamps?
+           delimitation_processor
          ) do
-      {:ok, buffer, pts, packets, channels} ->
+      {:ok, buffer, pts_out, packets, channels} ->
         stream_format = %Opus{
           self_delimiting?: self_delimiting?,
           channels: channels
@@ -114,7 +120,7 @@ defmodule Membrane.Opus.Parser do
               []
           end
 
-        {packet_actions, %{state | buffer: buffer, pts: pts}}
+        IO.inspect({packet_actions, %{state | buffer: buffer, pts_current: pts_out}}, label: "output")
 
       :error ->
         {{:error, "An error occured in parsing"}, state}
@@ -130,7 +136,7 @@ defmodule Membrane.Opus.Parser do
           channels :: 0..2
         ) ::
           {:ok, remaining_buffer :: binary, pts :: Membrane.Time.t(), packets :: [Buffer.t()],
-           channels :: 0..2, generate_best_effort_timestamps? :: boolean()}
+           channels :: 0..2}
           | :error
   defp maybe_parse(
          data,
@@ -138,8 +144,7 @@ defmodule Membrane.Opus.Parser do
          input_delimitted?,
          processor,
          packets \\ [],
-         channels \\ 0,
-         generate_best_effort_timestamps?
+         channels \\ 0
        )
 
   defp maybe_parse(
@@ -148,8 +153,7 @@ defmodule Membrane.Opus.Parser do
          input_delimitted?,
          processor,
          packets,
-         channels,
-         generate_best_effort_timestamps?
+         channels
        )
        when byte_size(data) > 0 do
     with {:ok, configuration_number, stereo_flag, frame_packing} <- Util.parse_toc_byte(data),
@@ -180,8 +184,7 @@ defmodule Membrane.Opus.Parser do
         input_delimitted?,
         processor,
         [packet | packets],
-        channels,
-        generate_best_effort_timestamps?
+        channels
       )
     else
       {:error, :cont} ->
@@ -198,8 +201,7 @@ defmodule Membrane.Opus.Parser do
          _input_delimitted?,
          _processor,
          packets,
-         channels,
-         _generate_best_effort_timestamps?
+         channels
        ) do
     {:ok, data, pts, packets |> Enum.reverse(), channels}
   end

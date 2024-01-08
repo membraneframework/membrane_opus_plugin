@@ -58,7 +58,7 @@ defmodule Membrane.Opus.Encoder do
       options
       |> Map.from_struct()
       |> Map.merge(%{
-        pts: nil,
+        pts_current: nil,
         native: nil,
         queue: <<>>
       })
@@ -133,21 +133,18 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  @spec handle_buffer(:input, Membrane.Buffer.t(), any(), %{
-          :input_stream_format => Membrane.RawAudio.t(),
-          :pts => any(),
-          :queue => binary(),
-          optional(any()) => any()
-        }) ::
-          {[{:buffer, {any(), any()}}],
-           %{:pts => any(), :queue => bitstring(), optional(any()) => any()}}
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, _ctx, state) do
-    prepared_state =
-      if state.pts == nil do
-        %{state | pts: pts}
-      else
+    # jesli state.pts_current ma jakas wartosc i queue nie jest puste to trzeba sprawdzic czy input pts == state.current_pts
+    prepared_state = cond do
+      state.queue == <<>> ->
+        %{state | pts_current: pts}
+      state.pts_current != pts ->
+        raise """
+        PTS values are not continuous
+        """
+      true ->
         state
-      end
+    end
 
     case encode_buffer(
            state.queue <> data,
@@ -160,7 +157,8 @@ defmodule Membrane.Opus.Encoder do
 
       {:ok, encoded_buffers, state} ->
         # something was encoded
-        {[buffer: {:output, encoded_buffers}], state}
+        IO.inspect(pts, label: "input pts")
+        IO.inspect({[buffer: {:output, encoded_buffers}], state})
     end
   end
 
@@ -227,8 +225,7 @@ defmodule Membrane.Opus.Encoder do
     {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, frame_size(state))
 
     # maybe keep encoding if there are more frames
-    out_buffer = [%Buffer{payload: raw_encoded, pts: state.pts} | encoded_frames]
-
+    out_buffer = [%Buffer{payload: raw_encoded, pts: state.pts_current} | encoded_frames]
     encode_buffer(
       rest,
       update_state_pts(state, raw_frame),
@@ -243,15 +240,16 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp update_state_pts(state, raw_frame) do
-    if state.pts == nil do
-      state
+    new_pts = if state.pts_current == nil do
+      nil
     else
       duration =
         raw_frame
         |> byte_size()
         |> RawAudio.bytes_to_time(state.input_stream_format)
-
-      %{state | pts: state.pts + duration}
+      state.pts_current + duration
     end
+
+    %{state | pts_current: new_pts}
   end
 end

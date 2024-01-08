@@ -11,20 +11,14 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   @input_path "test/fixtures/raw_packets"
   @reference_path "test/fixtures/encoder_output_reference"
 
-  defp raw_packets(with_pts?) do
+  defp raw_packets() do
     File.read!(@input_path)
     |> String.split()
-    |> Enum.zip(0..2)
+    |> Stream.with_index()
     |> Enum.map(fn {payload, index} ->
-      # this number is actual duration of buffers in @input_path
       %Membrane.Buffer{
         payload: payload,
-        pts:
-          if with_pts? do
-            index * 20_000_000
-          else
-            nil
-          end
+        pts: nil
       }
     end)
   end
@@ -68,7 +62,7 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
 
   test "encoder works with stream format received on :input pad" do
     spec = [
-      child(:source, %Membrane.Testing.Source{output: raw_packets(false)})
+      child(:source, %Membrane.Testing.Source{output: raw_packets()})
       |> child(:parser, %Membrane.RawAudioParser{
         stream_format: %Membrane.RawAudio{channels: 2, sample_format: :s16le, sample_rate: 48_000}
       })
