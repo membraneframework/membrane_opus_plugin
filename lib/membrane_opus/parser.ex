@@ -78,32 +78,33 @@ defmodule Membrane.Opus.Parser do
     {[], state}
   end
 
+  defp prepare_state(state, pts) do
+    cond do
+      state.generate_best_effort_timestamps? and state.pts_current == nil ->
+        %{state | pts_current: 0}
+
+      !state.generate_best_effort_timestamps? and state.queue == <<>> ->
+        %{state | pts_current: pts}
+
+      !state.generate_best_effort_timestamps? and state.pts_current != pts ->
+        raise """
+        PTS values are not continuous
+        """
+
+      true ->
+        state
+    end
+  end
+
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
-    prepared_state =
-      cond do
-        state.generate_best_effort_timestamps? and state.pts_current == nil ->
-          %{state | pts_current: 0}
-
-        !state.generate_best_effort_timestamps? and state.queue == <<>> ->
-          %{state | pts_current: pts}
-
-        !state.generate_best_effort_timestamps? and state.pts_current != pts ->
-          raise """
-          PTS values are not continuous
-          """
-
-        true ->
-          state
-      end
-
     case maybe_parse(
            state.queue <> data,
            delimitation_processor,
-           prepared_state
+           prepare_state(state, pts)
          ) do
       {:ok, queue, packets, channels, state} ->
         stream_format = %Opus{
