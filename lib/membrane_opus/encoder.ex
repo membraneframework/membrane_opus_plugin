@@ -134,7 +134,6 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: pts}, _ctx, state) do
-    # jesli state.pts_current ma jakas wartosc i queue nie jest puste to trzeba sprawdzic czy input pts == state.current_pts
     prepared_state =
       cond do
         state.queue == <<>> ->
