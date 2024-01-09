@@ -79,12 +79,10 @@ defmodule Membrane.Opus.Parser do
   end
 
   defp set_current_pts(%{generate_best_effort_timestamps?: true} = state, _input_pts) do
-    cond do
-      state.pts_current == nil ->
-        %{state | pts_current: 0}
-
-      true ->
-        state
+    if state.pts_current == nil do
+      %{state | pts_current: 0}
+    else
+      state
     end
   end
 
