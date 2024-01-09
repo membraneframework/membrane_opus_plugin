@@ -173,11 +173,14 @@ defmodule Membrane.Opus.Parser do
           duration: duration
         }
       }
-      updated_state = if state.pts_current == nil do
-        state
-      else
-        %{state | pts_current: state.pts_current + duration}
-      end
+
+      updated_state =
+        if state.pts_current == nil do
+          state
+        else
+          %{state | pts_current: state.pts_current + duration}
+        end
+
       maybe_parse(
         rest,
         processor,

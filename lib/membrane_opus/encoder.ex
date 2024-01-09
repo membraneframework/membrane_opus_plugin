@@ -244,9 +244,11 @@ defmodule Membrane.Opus.Encoder do
   defp bump_current_pts(%{pts_current: nil} = state, _raw_frame), do: state
 
   defp bump_current_pts(state, raw_frame) do
-    duration = raw_frame
+    duration =
+      raw_frame
       |> byte_size()
       |> RawAudio.bytes_to_time(state.input_stream_format)
-    Map.update!(state, :pts_current, & &1 + duration)
+
+    Map.update!(state, :pts_current, &(&1 + duration))
   end
 end
