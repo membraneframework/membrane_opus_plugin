@@ -78,15 +78,22 @@ defmodule Membrane.Opus.Parser do
     {[], state}
   end
 
-  defp prepare_state(state, pts) do
+  defp set_current_pts(%{generate_best_effort_timestamps?: true} = state, _input_pts) do
     cond do
-      state.generate_best_effort_timestamps? and state.pts_current == nil ->
+      state.pts_current == nil ->
         %{state | pts_current: 0}
 
-      !state.generate_best_effort_timestamps? and state.queue == <<>> ->
-        %{state | pts_current: pts}
+      true ->
+        state
+    end
+  end
 
-      !state.generate_best_effort_timestamps? and state.pts_current != pts ->
+  defp set_current_pts(%{generate_best_effort_timestamps?: false} = state, input_pts) do
+    cond do
+      state.queue == <<>> ->
+        %{state | pts_current: input_pts}
+
+      state.pts_current != input_pts ->
         raise """
         PTS values are not continuous
         """
@@ -104,7 +111,7 @@ defmodule Membrane.Opus.Parser do
     case maybe_parse(
            state.queue <> data,
            delimitation_processor,
-           prepare_state(state, pts)
+           set_current_pts(state, pts)
          ) do
       {:ok, queue, packets, channels, state} ->
         stream_format = %Opus{
@@ -166,17 +173,17 @@ defmodule Membrane.Opus.Parser do
           duration: duration
         }
       }
-
+      updated_state = if state.pts_current == nil do
+        state
+      else
+        %{state | pts_current: state.pts_current + duration}
+      end
       maybe_parse(
         rest,
         processor,
         [packet | packets],
         channels,
-        if state.pts_current == nil do
-          state
-        else
-          %{state | pts_current: state.pts_current + duration}
-        end
+        updated_state
       )
     else
       {:error, :cont} ->

@@ -230,7 +230,7 @@ defmodule Membrane.Opus.Encoder do
 
     encode_buffer(
       rest,
-      update_state_pts(state, raw_frame),
+      bump_current_pts(state, raw_frame),
       target_byte_size,
       out_buffer
     )
@@ -241,19 +241,12 @@ defmodule Membrane.Opus.Encoder do
     {:ok, encoded_frames |> Enum.reverse(), %{state | queue: raw_buffer}}
   end
 
-  defp update_state_pts(state, raw_frame) do
-    new_pts =
-      if state.pts_current == nil do
-        nil
-      else
-        duration =
-          raw_frame
-          |> byte_size()
-          |> RawAudio.bytes_to_time(state.input_stream_format)
+  defp bump_current_pts(%{pts_current: nil} = state, _raw_frame), do: state
 
-        state.pts_current + duration
-      end
-
-    %{state | pts_current: new_pts}
+  defp bump_current_pts(state, raw_frame) do
+    duration = raw_frame
+      |> byte_size()
+      |> RawAudio.bytes_to_time(state.input_stream_format)
+    Map.update!(state, :pts_current, & &1 + duration)
   end
 end
