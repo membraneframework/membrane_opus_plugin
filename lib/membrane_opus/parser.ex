@@ -87,31 +87,33 @@ defmodule Membrane.Opus.Parser do
   end
 
   defp set_current_pts(%{generate_best_effort_timestamps?: false} = state, input_pts) do
-    cond do
-      state.queue == <<>> ->
-        %{state | pts_current: input_pts}
-
-      state.pts_current != input_pts ->
-        raise """
-        PTS values are not continuous
-        """
-
-      true ->
-        state
+    if state.queue == <<>> do
+      %{state | pts_current: input_pts}
+    else
+      state
     end
   end
 
   @impl true
-  def handle_buffer(:input, %Buffer{payload: data, pts: pts}, ctx, state) do
+  def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
+
+    check_pts_integrity_flag =
+      if state.queue != <<>> and !state.generate_best_effort_timestamps? do
+        true
+      else
+        false
+      end
 
     case maybe_parse(
            state.queue <> data,
            delimitation_processor,
-           set_current_pts(state, pts)
+           set_current_pts(state, input_pts)
          ) do
       {:ok, queue, packets, channels, state} ->
+        check_pts_integrity(check_pts_integrity_flag, packets, input_pts)
+
         stream_format = %Opus{
           self_delimiting?: self_delimiting?,
           channels: channels
@@ -135,6 +137,18 @@ defmodule Membrane.Opus.Parser do
 
       :error ->
         {{:error, "An error occured in parsing"}, state}
+    end
+  end
+
+  defp check_pts_integrity(flag, encoded_buffers, input_pts) do
+    if flag and length(encoded_buffers) > 0 do
+      first_output_frame_pts = Enum.at(encoded_buffers, 0)
+
+      if first_output_frame_pts.pts != input_pts do
+        raise """
+        PTS values are not continuous
+        """
+      end
     end
   end
 
