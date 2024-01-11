@@ -112,7 +112,7 @@ defmodule Membrane.Opus.Parser do
            set_current_pts(state, input_pts)
          ) do
       {:ok, queue, packets, channels, state} ->
-        check_pts_integrity(check_pts_integrity_flag, packets, input_pts)
+        check_pts_integrity(check_pts_integrity_flag, List.first(packets), input_pts)
 
         stream_format = %Opus{
           self_delimiting?: self_delimiting?,
@@ -140,16 +140,15 @@ defmodule Membrane.Opus.Parser do
     end
   end
 
-  defp check_pts_integrity(flag, encoded_buffers, input_pts) do
-    if flag and length(encoded_buffers) > 0 do
-      first_output_frame_pts = Enum.at(encoded_buffers, 0)
-
-      if first_output_frame_pts.pts != input_pts do
-        raise """
-        PTS values are not continuous
-        """
-      end
+  defp check_pts_integrity(true = _flag, %Buffer{pts: pts}, input_pts) do
+    if pts != input_pts do
+      raise """
+      PTS values are not continuous
+      """
     end
+  end
+
+  defp check_pts_integrity(false = _flag, %Buffer{pts: _pts}, _input_pts) do
   end
 
   defp maybe_parse(
