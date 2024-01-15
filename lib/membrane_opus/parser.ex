@@ -99,7 +99,9 @@ check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_ti
            set_current_pts(state, input_pts)
          ) do
       {:ok, queue, packets, channels, state} ->
-        check_pts_integrity(check_pts_integrity_flag, List.first(packets), input_pts)
+if check_pts_integrity? and length(packets) >= 2 and Enum.at(packets, 1).pts != input_pts do
+        raise "PTS values are not continuous"
+end
 
         stream_format = %Opus{
           self_delimiting?: self_delimiting?,
