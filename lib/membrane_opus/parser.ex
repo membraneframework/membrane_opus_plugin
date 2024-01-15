@@ -91,12 +91,7 @@ defmodule Membrane.Opus.Parser do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
-    check_pts_integrity_flag =
-      if state.queue != <<>> and !state.generate_best_effort_timestamps? do
-        true
-      else
-        false
-      end
+check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_timestamps?
 
     case maybe_parse(
            state.queue <> data,
