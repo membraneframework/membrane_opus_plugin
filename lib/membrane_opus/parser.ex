@@ -65,7 +65,7 @@ defmodule Membrane.Opus.Parser do
       options
       |> Map.from_struct()
       |> Map.merge(%{
-        pts_current: nil,
+        current_pts: nil,
         queue: <<>>
       })
 
@@ -76,12 +76,12 @@ defmodule Membrane.Opus.Parser do
   def handle_stream_format(:input, _stream_format, _ctx, state) do
     # ignore stream_formats, they will be sent in handle_buffer
     {[], state}
-  defp set_current_pts(%{generate_best_effort_timestamps?: true, pts_current: nil} = state, _input_pts) do
-    %{state | pts_current: 0}
+  defp set_current_pts(%{generate_best_effort_timestamps?: true, current_pts: nil} = state, _input_pts) do
+    %{state | current_pts: 0}
   end
 
   defp set_current_pts(%{generate_best_effort_timestamps?: false, queue: <<>>} = state, input_pts) do
-    %{state | pts_current: input_pts}
+    %{state | current_pts: input_pts}
   end
 
   defp set_current_pts(state, _input_pts), do: state
@@ -99,9 +99,9 @@ check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_ti
            set_current_pts(state, input_pts)
          ) do
       {:ok, queue, packets, channels, state} ->
-if check_pts_integrity? and length(packets) >= 2 and Enum.at(packets, 1).pts != input_pts do
-        raise "PTS values are not continuous"
-end
+        if check_pts_integrity? and length(packets) >= 2 and Enum.at(packets, 1).pts != input_pts do
+          raise "PTS values are not continuous"
+        end
 
         stream_format = %Opus{
           self_delimiting?: self_delimiting?,
@@ -127,17 +127,6 @@ end
       :error ->
         {{:error, "An error occured in parsing"}, state}
     end
-  end
-
-  defp check_pts_integrity(true = _flag, %Buffer{pts: pts}, input_pts) do
-    if pts != input_pts do
-      raise """
-      PTS values are not continuous
-      """
-    end
-  end
-
-  defp check_pts_integrity(false = _flag, %Buffer{pts: _pts}, _input_pts) do
   end
 
   defp maybe_parse(
@@ -167,18 +156,18 @@ end
       duration = elapsed_time(frame_lengths, frame_duration)
 
       packet = %Buffer{
-        pts: state.pts_current,
+        pts: state.current_pts,
         payload: processor.process(raw_packet, frame_lengths, header_size),
         metadata: %{
           duration: duration
         }
       }
 
-      updated_state =
-        if state.pts_current == nil do
+      state =
+        if state.current_pts == nil do
           state
         else
-          %{state | pts_current: state.pts_current + duration}
+          %{state | current_pts: state.current_pts + duration}
         end
 
       maybe_parse(
@@ -186,7 +175,7 @@ end
         processor,
         [packet | packets],
         channels,
-        updated_state
+        state
       )
     else
       {:error, :cont} ->

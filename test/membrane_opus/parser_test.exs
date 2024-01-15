@@ -89,7 +89,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
     }
   ]
 
-  defp buffer_from_fixture(fixtures, self_delimited? \\ false) do
+  defp buffers_from_fixtures(fixtures, self_delimited? \\ false) do
     Enum.map(fixtures, fn fixture ->
       %Buffer{
         pts: fixture.pts,
@@ -106,7 +106,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "non-self-delimiting input and output" do
     spec = [
       child(:source, %Source{
-        output: buffer_from_fixture(@fixtures),
+        output: buffers_from_fixtures(@fixtures),
         stream_format: %RemoteStream{type: :bytestream}
       })
       |> child(:parser, Parser)
@@ -121,7 +121,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "non-self-delimiting input, self-delimiting output" do
     spec = [
       child(:source, %Source{
-        output: buffer_from_fixture(@fixtures),
+        output: buffers_from_fixtures(@fixtures),
         stream_format: %RemoteStream{type: :bytestream}
       })
       |> child(:parser, %Parser{delimitation: :delimit})
@@ -136,7 +136,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "self-delimiting input and output" do
     spec = [
       child(:source, %Source{
-        output: buffer_from_fixture(@fixtures, true),
+        output: buffers_from_fixtures(@fixtures, true),
         stream_format: %RemoteStream{type: :bytestream}
       })
       |> child(:parser, %Parser{input_delimitted?: true})
@@ -151,7 +151,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "self-delimiting input, non-self-delimiting output" do
     spec = [
       child(:source, %Source{
-        output: buffer_from_fixture(@fixtures, true),
+        output: buffers_from_fixtures(@fixtures, true),
         stream_format: %RemoteStream{type: :bytestream}
       })
       |> child(:parser, %Parser{delimitation: :undelimit, input_delimitted?: true})
@@ -165,7 +165,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "non-self-delimiting input and output, generate_best_effort_timestamps?" do
     spec =
       child(:source, %Source{
-        output: buffer_from_fixture(@fixtures),
+        output: buffers_from_fixtures(@fixtures),
         stream_format: %RemoteStream{type: :bytestream}
       })
       |> child(:parser, %Parser{generate_best_effort_timestamps?: true})
@@ -179,7 +179,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "non-self-delimiting input, self-delimiting output, generate_best_effort_timestamps?" do
     spec = [
       child(:source, %Source{
-        output: buffer_from_fixture(@fixtures),
+        output: buffers_from_fixtures(@fixtures),
         stream_format: %RemoteStream{type: :bytestream}
       })
       |> child(:parser, %Parser{delimitation: :delimit, generate_best_effort_timestamps?: true})
@@ -194,7 +194,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "self-delimiting input and output, generate_best_effort_timestamps?" do
     spec = [
       child(:source, %Source{
-        output: buffer_from_fixture(@fixtures, true),
+        output: buffers_from_fixtures(@fixtures, true),
         stream_format: %RemoteStream{type: :bytestream}
       })
       |> child(:parser, %Parser{input_delimitted?: true, generate_best_effort_timestamps?: true})
@@ -209,7 +209,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
   test "self-delimiting input, non-self-delimiting output, generate_best_effort_timestamps?" do
     spec = [
       child(:source, %Source{
-        output: buffer_from_fixture(@fixtures, true),
+        output: buffers_from_fixtures(@fixtures, true),
         stream_format: %RemoteStream{type: :bytestream}
       })
       |> child(:parser, %Parser{

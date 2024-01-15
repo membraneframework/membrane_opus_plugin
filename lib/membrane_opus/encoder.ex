@@ -58,7 +58,7 @@ defmodule Membrane.Opus.Encoder do
       options
       |> Map.from_struct()
       |> Map.merge(%{
-        pts_current: nil,
+        current_pts: nil,
         native: nil,
         queue: <<>>
       })
@@ -136,7 +136,7 @@ defmodule Membrane.Opus.Encoder do
   def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, _ctx, state) do
     prepared_state =
       if state.queue == <<>> do
-        %{state | pts_current: input_pts}
+        %{state | current_pts: input_pts}
       else
         state
       end
@@ -238,7 +238,7 @@ defmodule Membrane.Opus.Encoder do
     {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, frame_size(state))
 
     # maybe keep encoding if there are more frames
-    out_buffer = [%Buffer{payload: raw_encoded, pts: state.pts_current} | encoded_frames]
+    out_buffer = [%Buffer{payload: raw_encoded, pts: state.current_pts} | encoded_frames]
 
     encode_buffer(
       rest,
@@ -253,7 +253,7 @@ defmodule Membrane.Opus.Encoder do
     {:ok, encoded_frames |> Enum.reverse(), %{state | queue: raw_buffer}}
   end
 
-  defp bump_current_pts(%{pts_current: nil} = state, _raw_frame), do: state
+  defp bump_current_pts(%{current_pts: nil} = state, _raw_frame), do: state
 
   defp bump_current_pts(state, raw_frame) do
     duration =
@@ -261,6 +261,6 @@ defmodule Membrane.Opus.Encoder do
       |> byte_size()
       |> RawAudio.bytes_to_time(state.input_stream_format)
 
-    Map.update!(state, :pts_current, &(&1 + duration))
+    Map.update!(state, :current_pts, &(&1 + duration))
   end
 end
