@@ -76,23 +76,15 @@ defmodule Membrane.Opus.Parser do
   def handle_stream_format(:input, _stream_format, _ctx, state) do
     # ignore stream_formats, they will be sent in handle_buffer
     {[], state}
+  defp set_current_pts(%{generate_best_effort_timestamps?: true, pts_current: nil} = state, _input_pts) do
+    %{state | pts_current: 0}
   end
 
-  defp set_current_pts(%{generate_best_effort_timestamps?: true} = state, _input_pts) do
-    if state.pts_current == nil do
-      %{state | pts_current: 0}
-    else
-      state
-    end
+  defp set_current_pts(%{generate_best_effort_timestamps?: false, queue: <<>>} = state, input_pts) do
+    %{state | pts_current: input_pts}
   end
 
-  defp set_current_pts(%{generate_best_effort_timestamps?: false} = state, input_pts) do
-    if state.queue == <<>> do
-      %{state | pts_current: input_pts}
-    else
-      state
-    end
-  end
+  defp set_current_pts(state, _input_pts), do: state
 
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, ctx, state) do
