@@ -76,7 +76,12 @@ defmodule Membrane.Opus.Parser do
   def handle_stream_format(:input, _stream_format, _ctx, state) do
     # ignore stream_formats, they will be sent in handle_buffer
     {[], state}
-  defp set_current_pts(%{generate_best_effort_timestamps?: true, current_pts: nil} = state, _input_pts) do
+  end
+
+  defp set_current_pts(
+         %{generate_best_effort_timestamps?: true, current_pts: nil} = state,
+         _input_pts
+       ) do
     %{state | current_pts: 0}
   end
 
@@ -91,7 +96,7 @@ defmodule Membrane.Opus.Parser do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
-check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_timestamps?
+    check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_timestamps?
 
     case maybe_parse(
            state.queue <> data,
