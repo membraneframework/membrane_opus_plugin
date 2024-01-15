@@ -104,9 +104,7 @@ defmodule Membrane.Opus.Parser do
            set_current_pts(state, input_pts)
          ) do
       {:ok, queue, packets, channels, state} ->
-        if check_pts_integrity? and length(packets) >= 2 and Enum.at(packets, 1).pts != input_pts do
-          raise "PTS values are not continuous"
-        end
+        check_pts_integrity(check_pts_integrity?, packets, input_pts)
 
         stream_format = %Opus{
           self_delimiting?: self_delimiting?,
@@ -132,6 +130,16 @@ defmodule Membrane.Opus.Parser do
       :error ->
         {{:error, "An error occured in parsing"}, state}
     end
+  end
+
+  defp check_pts_integrity(true = _check_pts_integrity?, packets, input_pts) do
+    if length(packets) >= 2 and Enum.at(packets, 1).pts != input_pts do
+      raise "PTS values are not continuous"
+    end
+  end
+
+  defp check_pts_integrity(_check_pts_integrity?, _packets, _input_pts) do
+    :ok
   end
 
   defp maybe_parse(
