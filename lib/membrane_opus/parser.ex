@@ -98,48 +98,38 @@ defmodule Membrane.Opus.Parser do
 
     check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_timestamps?
 
-    case maybe_parse(
-           state.queue <> data,
-           delimitation_processor,
-           set_current_pts(state, input_pts)
-         ) do
-      {:ok, queue, packets, channels, state} ->
-        check_pts_integrity(check_pts_integrity?, packets, input_pts)
+    {:ok, queue, packets, channels, state} =
+      maybe_parse(
+        state.queue <> data,
+        delimitation_processor,
+        set_current_pts(state, input_pts)
+      )
 
-        stream_format = %Opus{
-          self_delimiting?: self_delimiting?,
-          channels: channels
-        }
-
-        packets_len = length(packets)
-
-        packet_actions =
-          cond do
-            packets_len > 0 and stream_format != ctx.pads.output.stream_format ->
-              [stream_format: {:output, stream_format}, buffer: {:output, packets}]
-
-            packets_len > 0 ->
-              [buffer: {:output, packets}]
-
-            true ->
-              []
-          end
-
-        {packet_actions, %{state | queue: queue}}
-
-      :error ->
-        {{:error, "An error occured in parsing"}, state}
-    end
-  end
-
-  defp check_pts_integrity(true = _check_pts_integrity?, packets, input_pts) do
-    if length(packets) >= 2 and Enum.at(packets, 1).pts != input_pts do
+    if check_pts_integrity? and length(packets) >= 2 and
+         Enum.at(packets, 1).pts != input_pts do
       raise "PTS values are not continuous"
     end
-  end
 
-  defp check_pts_integrity(_check_pts_integrity?, _packets, _input_pts) do
-    :ok
+    stream_format = %Opus{
+      self_delimiting?: self_delimiting?,
+      channels: channels
+    }
+
+    packets_len = length(packets)
+
+    packet_actions =
+      cond do
+        packets_len > 0 and stream_format != ctx.pads.output.stream_format ->
+          [stream_format: {:output, stream_format}, buffer: {:output, packets}]
+
+        packets_len > 0 ->
+          [buffer: {:output, packets}]
+
+        true ->
+          []
+      end
+
+    {packet_actions, %{state | queue: queue}}
   end
 
   defp maybe_parse(
@@ -191,11 +181,11 @@ defmodule Membrane.Opus.Parser do
         state
       )
     else
+      :error ->
+        raise "An error occured in parsing"
+
       {:error, :cont} ->
         {:ok, data, packets |> Enum.reverse(), channels, state}
-
-      :error ->
-        :error
     end
   end
 
