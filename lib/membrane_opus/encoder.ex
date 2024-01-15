@@ -132,25 +132,19 @@ defmodule Membrane.Opus.Encoder do
     """
   end
 
+  defp set_current_pts(%{queue: <<>>} = state, input_pts) do
+    %{state | current_pts: input_pts}
+  end
+
+  defp set_current_pts(state, _input_pts), do: state
+
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, _ctx, state) do
-    prepared_state =
-      if state.queue == <<>> do
-        %{state | current_pts: input_pts}
-      else
-        state
-      end
-
-    check_pts_integrity_flag =
-      if state.queue != <<>> do
-        true
-      else
-        false
-      end
+    check_pts_integrity? = state.queue != <<>>
 
     case encode_buffer(
            state.queue <> data,
-           prepared_state,
+           set_current_pts(state, input_pts),
            frame_size_in_bytes(state)
          ) do
       {:ok, [], state} ->
@@ -159,20 +153,13 @@ defmodule Membrane.Opus.Encoder do
 
       {:ok, encoded_buffers, state} ->
         # something was encoded
-        check_pts_integrity(check_pts_integrity_flag, List.first(encoded_buffers), input_pts)
+        if check_pts_integrity? and length(encoded_buffers) >= 2 and
+             Enum.at(encoded_buffers, 1).pts != input_pts do
+          raise "PTS values are not continuous"
+        end
+
         {[buffer: {:output, encoded_buffers}], state}
     end
-  end
-
-  defp check_pts_integrity(true = _flag, %Buffer{pts: pts}, input_pts) do
-    if pts != input_pts do
-      raise """
-      PTS values are not continuous
-      """
-    end
-  end
-
-  defp check_pts_integrity(false = _flag, %Buffer{pts: _pts}, _input_pts) do
   end
 
   @impl true
