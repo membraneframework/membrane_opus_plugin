@@ -9,7 +9,7 @@ defmodule Membrane.Opus.Parser do
   """
 
   use Membrane.Filter
-
+  require Membrane.Logger
   alias __MODULE__.{Delimitation, FrameLengths}
   alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Opus.Util
@@ -42,6 +42,15 @@ defmodule Membrane.Opus.Parser do
                 to true to force the Parser to assume the input is self-delimitted? and
                 ignore upstream stream_format information on self-delimitation.
                 """
+              ],
+              generate_best_effort_timestamps?: [
+                spec: boolean(),
+                default: false,
+                description: """
+                If this is set to true parser will try to generate timestamps
+                starting from 0 and increasing them by frame duration,
+                otherwise it will pass pts from input to output, even if it's nil.
+                """
               ]
 
   def_input_pad :input,
@@ -56,8 +65,8 @@ defmodule Membrane.Opus.Parser do
       options
       |> Map.from_struct()
       |> Map.merge(%{
-        pts: 0,
-        buffer: <<>>
+        current_pts: nil,
+        queue: <<>>
       })
 
     {[], state}
@@ -69,96 +78,125 @@ defmodule Membrane.Opus.Parser do
     {[], state}
   end
 
+  defp set_current_pts(
+         %{generate_best_effort_timestamps?: true, current_pts: nil} = state,
+         _input_pts
+       ) do
+    %{state | current_pts: 0}
+  end
+
+  defp set_current_pts(%{generate_best_effort_timestamps?: false, queue: <<>>} = state, input_pts) do
+    %{state | current_pts: input_pts}
+  end
+
+  defp set_current_pts(state, _input_pts), do: state
+
   @impl true
-  def handle_buffer(:input, %Buffer{payload: data}, ctx, state) do
+  def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
-    case maybe_parse(
-           state.buffer <> data,
-           state.pts,
-           state.input_delimitted?,
-           delimitation_processor
-         ) do
-      {:ok, buffer, pts, packets, channels} ->
-        stream_format = %Opus{
-          self_delimiting?: self_delimiting?,
-          channels: channels
-        }
+    check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_timestamps?
 
-        packets_len = length(packets)
+    {:ok, queue, packets, channels, state} =
+      maybe_parse(
+        state.queue <> data,
+        delimitation_processor,
+        set_current_pts(state, input_pts)
+      )
 
-        packet_actions =
-          cond do
-            packets_len > 0 and stream_format != ctx.pads.output.stream_format ->
-              [stream_format: {:output, stream_format}, buffer: {:output, packets}]
-
-            packets_len > 0 ->
-              [buffer: {:output, packets}]
-
-            true ->
-              []
-          end
-
-        {packet_actions, %{state | buffer: buffer, pts: pts}}
-
-      :error ->
-        {{:error, "An error occured in parsing"}, state}
+    if check_pts_integrity? and length(packets) >= 2 and
+         Enum.at(packets, 1).pts > input_pts do
+      Membrane.Logger.warning("PTS values are overlapping")
     end
+
+    stream_format = %Opus{
+      self_delimiting?: self_delimiting?,
+      channels: channels
+    }
+
+    packets_len = length(packets)
+
+    packet_actions =
+      cond do
+        packets_len > 0 and stream_format != ctx.pads.output.stream_format ->
+          [stream_format: {:output, stream_format}, buffer: {:output, packets}]
+
+        packets_len > 0 ->
+          [buffer: {:output, packets}]
+
+        true ->
+          []
+      end
+
+    {packet_actions, %{state | queue: queue}}
   end
 
-  @spec maybe_parse(
-          data :: binary,
-          pts :: Membrane.Time.t(),
-          input_delimitted? :: boolean,
-          processor :: Delimitation.processor_t(),
-          packets :: [Buffer.t()],
-          channels :: 0..2
-        ) ::
-          {:ok, remaining_buffer :: binary, pts :: Membrane.Time.t(), packets :: [Buffer.t()],
-           channels :: 0..2}
-          | :error
-  defp maybe_parse(data, pts, input_delimitted?, processor, packets \\ [], channels \\ 0)
+  defp maybe_parse(
+         data,
+         processor,
+         packets \\ [],
+         channels \\ 0,
+         state
+       )
 
-  defp maybe_parse(data, pts, input_delimitted?, processor, packets, channels)
+  defp maybe_parse(
+         data,
+         processor,
+         packets,
+         channels,
+         state
+       )
        when byte_size(data) > 0 do
     with {:ok, configuration_number, stereo_flag, frame_packing} <- Util.parse_toc_byte(data),
          channels <- max(channels, Util.parse_channels(stereo_flag)),
          {:ok, _mode, _bandwidth, frame_duration} <-
            Util.parse_configuration(configuration_number),
          {:ok, header_size, frame_lengths, padding_size} <-
-           FrameLengths.parse(frame_packing, data, input_delimitted?),
+           FrameLengths.parse(frame_packing, data, state.input_delimitted?),
          expected_packet_size <- header_size + Enum.sum(frame_lengths) + padding_size,
          {:ok, raw_packet, rest} <- rest_of_packet(data, expected_packet_size) do
       duration = elapsed_time(frame_lengths, frame_duration)
 
       packet = %Buffer{
-        pts: pts,
+        pts: state.current_pts,
         payload: processor.process(raw_packet, frame_lengths, header_size),
         metadata: %{
           duration: duration
         }
       }
 
+      state =
+        if state.current_pts == nil do
+          state
+        else
+          %{state | current_pts: state.current_pts + duration}
+        end
+
       maybe_parse(
         rest,
-        pts + duration,
-        input_delimitted?,
         processor,
         [packet | packets],
-        channels
+        channels,
+        state
       )
     else
-      {:error, :cont} ->
-        {:ok, data, pts, packets |> Enum.reverse(), channels}
-
       :error ->
-        :error
+        raise "An error occured in parsing"
+
+      {:error, :cont} ->
+        {:ok, data, packets |> Enum.reverse(), channels, state}
     end
   end
 
-  defp maybe_parse(data, pts, _input_delimitted?, _processor, packets, channels) do
-    {:ok, data, pts, packets |> Enum.reverse(), channels}
+  defp maybe_parse(
+         data,
+         _processor,
+         packets,
+         channels,
+         state
+       ) do
+    {:ok, data, packets |> Enum.reverse(), channels, state}
   end
 
   @spec rest_of_packet(data :: binary, expected_packet_size :: pos_integer) ::

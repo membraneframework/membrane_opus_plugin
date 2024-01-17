@@ -58,6 +58,7 @@ defmodule Membrane.Opus.Encoder do
       options
       |> Map.from_struct()
       |> Map.merge(%{
+        current_pts: nil,
         native: nil,
         queue: <<>>
       })
@@ -132,15 +133,26 @@ defmodule Membrane.Opus.Encoder do
   end
 
   @impl true
-  def handle_buffer(:input, %Buffer{payload: data}, _ctx, state) do
-    case encode_buffer(state.queue <> data, state, frame_size_in_bytes(state)) do
-      {:ok, {[], rest}} ->
-        # nothing was encoded
-        {[], %{state | queue: rest}}
+  def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, _ctx, state) do
+    check_pts_integrity? = state.queue != <<>>
 
-      {:ok, {encoded_buffers, rest}} ->
+    case encode_buffer(
+           state.queue <> data,
+           set_current_pts(state, input_pts),
+           frame_size_in_bytes(state)
+         ) do
+      {:ok, [], state} ->
+        # nothing was encoded
+        {[], state}
+
+      {:ok, encoded_buffers, state} ->
         # something was encoded
-        {[buffer: {:output, encoded_buffers}], %{state | queue: rest}}
+        if check_pts_integrity? and length(encoded_buffers) >= 2 and
+             Enum.at(encoded_buffers, 1).pts > input_pts do
+          Membrane.Logger.warning("PTS values are overlapping")
+        end
+
+        {[buffer: {:output, encoded_buffers}], state}
     end
   end
 
@@ -159,6 +171,12 @@ defmodule Membrane.Opus.Encoder do
       {actions, %{state | queue: <<>>}}
     end
   end
+
+  defp set_current_pts(%{queue: <<>>} = state, input_pts) do
+    %{state | current_pts: input_pts}
+  end
+
+  defp set_current_pts(state, _input_pts), do: state
 
   defp mk_native!(state) do
     with {:ok, channels} <- validate_channels(state.input_stream_format.channels),
@@ -207,16 +225,29 @@ defmodule Membrane.Opus.Encoder do
     {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, frame_size(state))
 
     # maybe keep encoding if there are more frames
+    out_buffer = [%Buffer{payload: raw_encoded, pts: state.current_pts} | encoded_frames]
+
     encode_buffer(
       rest,
-      state,
+      bump_current_pts(state, raw_frame),
       target_byte_size,
-      [%Buffer{payload: raw_encoded} | encoded_frames]
+      out_buffer
     )
   end
 
-  defp encode_buffer(raw_buffer, _state, _target_byte_size, encoded_frames) do
+  defp encode_buffer(raw_buffer, state, _target_byte_size, encoded_frames) do
     # Invariant for encode_buffer - return what we have encoded
-    {:ok, {encoded_frames |> Enum.reverse(), raw_buffer}}
+    {:ok, encoded_frames |> Enum.reverse(), %{state | queue: raw_buffer}}
+  end
+
+  defp bump_current_pts(%{current_pts: nil} = state, _raw_frame), do: state
+
+  defp bump_current_pts(state, raw_frame) do
+    duration =
+      raw_frame
+      |> byte_size()
+      |> RawAudio.bytes_to_time(state.input_stream_format)
+
+    Map.update!(state, :current_pts, &(&1 + duration))
   end
 end
