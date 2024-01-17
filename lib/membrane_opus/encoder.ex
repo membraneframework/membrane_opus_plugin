@@ -154,8 +154,8 @@ defmodule Membrane.Opus.Encoder do
       {:ok, encoded_buffers, state} ->
         # something was encoded
         if check_pts_integrity? and length(encoded_buffers) >= 2 and
-             Enum.at(encoded_buffers, 1).pts != input_pts do
-          raise "PTS values are not continuous"
+             Enum.at(encoded_buffers, 1).pts > input_pts do
+          raise "PTS values are overlapping"
         end
 
         {[buffer: {:output, encoded_buffers}], state}

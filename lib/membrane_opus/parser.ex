@@ -106,8 +106,8 @@ defmodule Membrane.Opus.Parser do
       )
 
     if check_pts_integrity? and length(packets) >= 2 and
-         Enum.at(packets, 1).pts != input_pts do
-      raise "PTS values are not continuous"
+         Enum.at(packets, 1).pts > input_pts do
+      raise "PTS values are overlapping"
     end
 
     stream_format = %Opus{
