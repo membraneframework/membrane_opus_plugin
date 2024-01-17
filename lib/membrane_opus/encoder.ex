@@ -132,12 +132,6 @@ defmodule Membrane.Opus.Encoder do
     """
   end
 
-  defp set_current_pts(%{queue: <<>>} = state, input_pts) do
-    %{state | current_pts: input_pts}
-  end
-
-  defp set_current_pts(state, _input_pts), do: state
-
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, _ctx, state) do
     check_pts_integrity? = state.queue != <<>>
@@ -177,6 +171,12 @@ defmodule Membrane.Opus.Encoder do
       {actions, %{state | queue: <<>>}}
     end
   end
+
+  defp set_current_pts(%{queue: <<>>} = state, input_pts) do
+    %{state | current_pts: input_pts}
+  end
+
+  defp set_current_pts(state, _input_pts), do: state
 
   defp mk_native!(state) do
     with {:ok, channels} <- validate_channels(state.input_stream_format.channels),
