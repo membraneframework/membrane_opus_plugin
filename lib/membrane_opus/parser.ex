@@ -105,14 +105,7 @@ defmodule Membrane.Opus.Parser do
         set_current_pts(state, input_pts)
       )
 
-      cond do
-        check_pts_integrity? and length(packets) >= 2 and Enum.at(packets, 1).pts > input_pts ->
-          Membrane.Logger.warning("PTS values are overlapping")
-        check_pts_integrity? and length(packets) >= 2 and Enum.at(packets, 1).pts < input_pts ->
-          Membrane.Logger.warning("PTS values are not continous")
-        true ->
-          :ok
-      end
+    validate_pts_integrity(check_pts_integrity?, packets, input_pts)
 
     stream_format = %Opus{
       self_delimiting?: self_delimiting?,
@@ -222,5 +215,22 @@ defmodule Membrane.Opus.Parser do
     # included in this calc
     present_frames = frame_lengths |> Enum.count(fn length -> length > 0 end)
     present_frames * frame_duration
+  end
+
+  defp validate_pts_integrity(true = _check_pts_integrity?, packets, input_pts) do
+    cond do
+      length(packets) >= 2 and Enum.at(packets, 1).pts > input_pts ->
+        Membrane.Logger.warning("PTS values are overlapping")
+
+      length(packets) >= 2 and Enum.at(packets, 1).pts < input_pts ->
+        Membrane.Logger.warning("PTS values are not continous")
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_pts_integrity(_check_pts_integrity?, _packets, _input_pts) do
+    :ok
   end
 end

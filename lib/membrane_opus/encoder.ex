@@ -147,14 +147,7 @@ defmodule Membrane.Opus.Encoder do
 
       {:ok, encoded_buffers, state} ->
         # something was encoded
-        cond do
-          check_pts_integrity? and length(encoded_buffers) >= 2 and Enum.at(encoded_buffers, 1).pts > input_pts ->
-            Membrane.Logger.warning("PTS values are overlapping")
-          check_pts_integrity? and length(encoded_buffers) >= 2 and Enum.at(encoded_buffers, 1).pts < input_pts ->
-            Membrane.Logger.warning("PTS values are not continous")
-          true ->
-            :ok
-        end
+        validate_pts_integrity(check_pts_integrity?, encoded_buffers, input_pts)
 
         {[buffer: {:output, encoded_buffers}], state}
     end
@@ -253,5 +246,22 @@ defmodule Membrane.Opus.Encoder do
       |> RawAudio.bytes_to_time(state.input_stream_format)
 
     Map.update!(state, :current_pts, &(&1 + duration))
+  end
+
+  defp validate_pts_integrity(true = _check_pts_integrity?, encoded_buffers, input_pts) do
+    cond do
+      length(encoded_buffers) >= 2 and Enum.at(encoded_buffers, 1).pts > input_pts ->
+        Membrane.Logger.warning("PTS values are overlapping")
+
+      length(encoded_buffers) >= 2 and Enum.at(encoded_buffers, 1).pts < input_pts ->
+        Membrane.Logger.warning("PTS values are not continous")
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_pts_integrity(_check_pts_integrity?, _encoded_buffers, _input_pts) do
+    :ok
   end
 end
