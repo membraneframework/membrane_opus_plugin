@@ -1,8 +1,8 @@
 defmodule Membrane.Opus.Util do
   @moduledoc false
   # Miscellaneous utility functions
-
   import Membrane.Time
+  require Membrane.Logger
 
   @spec parse_toc_byte(data :: binary) ::
           {:ok, config_number :: 0..31, stereo_flag :: 0..1, frame_packing :: 0..3} | :error
@@ -64,6 +64,22 @@ defmodule Membrane.Opus.Util do
       30 -> {:ok, :celt, :full, 10 |> milliseconds()}
       31 -> {:ok, :celt, :full, 20 |> milliseconds()}
       _otherwise -> :error
+    end
+  end
+
+  @spec validate_pts_integrity([Membrane.Buffer.t()], integer()) :: :ok
+  def validate_pts_integrity(packets, input_pts) do
+    cond do
+      length(packets) < 2 or Enum.at(packets, 1).pts == input_pts ->
+        :ok
+
+      Enum.at(packets, 1).pts > input_pts ->
+        Membrane.Logger.warning("PTS values are overlapping")
+        :ok
+
+      Enum.at(packets, 1).pts < input_pts ->
+        Membrane.Logger.warning("PTS values are not continous")
+        :ok
     end
   end
 end

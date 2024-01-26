@@ -9,7 +9,7 @@ defmodule Membrane.Opus.Parser do
   """
 
   use Membrane.Filter
-  require Membrane.Logger
+
   alias __MODULE__.{Delimitation, FrameLengths}
   alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Opus.Util
@@ -105,9 +105,8 @@ defmodule Membrane.Opus.Parser do
         set_current_pts(state, input_pts)
       )
 
-    if check_pts_integrity? and length(packets) >= 2 and
-         Enum.at(packets, 1).pts > input_pts do
-      Membrane.Logger.warning("PTS values are overlapping")
+    if check_pts_integrity? do
+      Util.validate_pts_integrity(packets, input_pts)
     end
 
     stream_format = %Opus{

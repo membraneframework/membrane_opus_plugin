@@ -10,6 +10,7 @@ defmodule Membrane.Opus.Encoder do
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.Opus
+  alias Membrane.Opus.Util
   alias Membrane.RawAudio
 
   @allowed_channels [1, 2]
@@ -147,9 +148,8 @@ defmodule Membrane.Opus.Encoder do
 
       {:ok, encoded_buffers, state} ->
         # something was encoded
-        if check_pts_integrity? and length(encoded_buffers) >= 2 and
-             Enum.at(encoded_buffers, 1).pts > input_pts do
-          Membrane.Logger.warning("PTS values are overlapping")
+        if check_pts_integrity? do
+          Util.validate_pts_integrity(encoded_buffers, input_pts)
         end
 
         {[buffer: {:output, encoded_buffers}], state}
