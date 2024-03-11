@@ -15,7 +15,7 @@ The package can be installed by adding `membrane_opus_plugin` to your list of de
 ```elixir
 def deps do
   [
-    {:membrane_opus_plugin, "~> 0.20.0"}
+    {:membrane_opus_plugin, "~> 0.20.1"}
   ]
 end
 ```
