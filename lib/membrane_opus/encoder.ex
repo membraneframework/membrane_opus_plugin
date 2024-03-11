@@ -165,7 +165,7 @@ defmodule Membrane.Opus.Encoder do
       # pad with 0
       to_encode = String.pad_trailing(state.queue, frame_size_in_bytes(state), <<0>>)
       {:ok, raw_encoded} = Native.encode_packet(state.native, to_encode, frame_size(state))
-      buffer_actions = [buffer: {:output, %Buffer{payload: raw_encoded}}]
+      buffer_actions = [buffer: {:output, %Buffer{payload: raw_encoded, pts: state.current_pts}}]
       {buffer_actions ++ actions, %{state | queue: <<>>}}
     else
       {actions, %{state | queue: <<>>}}
