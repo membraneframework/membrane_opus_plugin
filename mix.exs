@@ -6,6 +6,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
 
   def project do
     [
+      homepage_url: "https://membrane.stream",
       app: :membrane_opus_plugin,
       version: @version,
       elixir: "~> 1.13",
