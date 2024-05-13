@@ -91,7 +91,7 @@ defmodule Membrane.Opus.Parser do
   defp set_current_pts(
          %{generate_best_effort_timestamps?: true, current_pts: current_pts} = state,
          _input_pts,
-         %{ogg_page_pts: ogg_page_pts} = _metadata
+         %{ogg: %{page_pts: ogg_page_pts}} = _metadata
        )
        when not is_nil(ogg_page_pts) do
     if current_pts != ogg_page_pts do
