@@ -10,6 +10,7 @@ defmodule Membrane.Opus.Parser do
 
   use Membrane.Filter
 
+  require Membrane.Logger
   alias __MODULE__.{Delimitation, FrameLengths}
   alias Membrane.{Buffer, Opus, RemoteStream}
   alias Membrane.Opus.Util
@@ -48,8 +49,9 @@ defmodule Membrane.Opus.Parser do
                 default: false,
                 description: """
                 If this is set to true parser will try to generate timestamps
-                starting from 0 and increasing them by frame duration,
-                otherwise it will pass pts from input to output, even if it's nil.
+                starting from 0 and increasing them by frame duration and validating them
+                based on `ogg_page_pts` metadata field (if present).
+                Otherwise it will pass pts from input to output, even if it's nil.
                 """
               ]
 
@@ -80,33 +82,54 @@ defmodule Membrane.Opus.Parser do
 
   defp set_current_pts(
          %{generate_best_effort_timestamps?: true, current_pts: nil} = state,
-         _input_pts
+         _input_pts,
+         _metadata
        ) do
     %{state | current_pts: 0}
   end
 
-  defp set_current_pts(%{generate_best_effort_timestamps?: false, queue: <<>>} = state, input_pts) do
+  defp set_current_pts(
+         %{generate_best_effort_timestamps?: true, current_pts: current_pts} = state,
+         _input_pts,
+         %{ogg_page_pts: ogg_page_pts} = _metadata
+       ) do
+    if current_pts != ogg_page_pts do
+      Membrane.Logger.warning(
+        "Best effort PTS calculated from frame durations (#{current_pts}) differs from the one based on OGG granule position (#{ogg_page_pts}), assuming the latter one as correct."
+      )
+    end
+
+    %{state | current_pts: ogg_page_pts}
+  end
+
+  defp set_current_pts(
+         %{generate_best_effort_timestamps?: false, queue: <<>>} = state,
+         input_pts,
+         _metadata
+       ) do
     %{state | current_pts: input_pts}
   end
 
-  defp set_current_pts(state, _input_pts), do: state
+  defp set_current_pts(state, _input_pts, _metadata), do: state
 
   @impl true
-  def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, ctx, state) do
+  def handle_buffer(:input, %Buffer{payload: data, pts: pts, metadata: metadata}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
     check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_timestamps?
 
+    state = set_current_pts(state, pts, metadata)
+
     {:ok, queue, packets, channels, state} =
       maybe_parse(
         state.queue <> data,
         delimitation_processor,
-        set_current_pts(state, input_pts)
+        state
       )
 
     if check_pts_integrity? do
-      Util.validate_pts_integrity(packets, input_pts)
+      Util.validate_pts_integrity(packets, pts)
     end
 
     stream_format = %Opus{

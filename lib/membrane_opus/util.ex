@@ -67,9 +67,12 @@ defmodule Membrane.Opus.Util do
     end
   end
 
-  @spec validate_pts_integrity([Membrane.Buffer.t()], integer()) :: :ok
+  @spec validate_pts_integrity([Membrane.Buffer.t()], integer() | nil) :: :ok
   def validate_pts_integrity(packets, input_pts) do
     cond do
+      input_pts == nil ->
+        :ok
+
       length(packets) < 2 or Enum.at(packets, 1).pts == input_pts ->
         :ok
 
