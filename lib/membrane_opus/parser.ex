@@ -49,9 +49,11 @@ defmodule Membrane.Opus.Parser do
                 default: false,
                 description: """
                 If this is set to true parser will try to generate timestamps
-                starting from 0 and increasing them by frame duration and validating them
-                based on `ogg_page_pts` metadata field (if present).
+                starting from 0 and increasing them by frame duration.
                 Otherwise it will pass pts from input to output, even if it's nil.
+                In case `ogg.page_pts` metadata field is present in incoming buffers
+                timestamps will be generated based on it and frame durations, regardless of
+                this option's value.
                 """
               ]
 
