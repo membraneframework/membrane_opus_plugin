@@ -89,18 +89,27 @@ defmodule Membrane.Opus.Parser do
   end
 
   defp set_current_pts(
-         %{generate_best_effort_timestamps?: true, current_pts: current_pts} = state,
+         %{current_pts: current_pts} = state,
          _input_pts,
          %{ogg: %{page_pts: ogg_page_pts}} = _metadata
        )
        when not is_nil(ogg_page_pts) do
-    if current_pts != ogg_page_pts do
-      Membrane.Logger.warning(
-        "Best effort PTS calculated from frame durations (#{current_pts}) differs from the one based on OGG granule position (#{ogg_page_pts}), assuming the latter one as correct."
-      )
+    cond do
+      current_pts < ogg_page_pts ->
+        Membrane.Logger.debug(
+          "Best effort PTS calculated from frame durations (#{current_pts}) is smaller the one based on OGG granule position (#{ogg_page_pts}), assuming the latter one as correct."
+        )
+
+      current_pts > ogg_page_pts ->
+        Membrane.Logger.warning(
+          "Best effort PTS calculated from frame durations (#{current_pts}) overlaps with the one based on OGG granule position (#{ogg_page_pts}), assuming the latter one as correct."
+        )
+
+      current_pts == ogg_page_pts ->
+        :ok
     end
 
-    %{state | current_pts: ogg_page_pts}
+    %{state | current_pts: ogg_page_pts, generate_best_effort_timestamps?: true}
   end
 
   defp set_current_pts(
@@ -118,9 +127,9 @@ defmodule Membrane.Opus.Parser do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_delimitted?)
 
-    check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_timestamps?
-
     state = set_current_pts(state, pts, metadata)
+
+    check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_timestamps?
 
     {:ok, queue, packets, channels, state} =
       maybe_parse(
