@@ -50,10 +50,10 @@ defmodule Membrane.Opus.Parser do
                 description: """
                 If this is set to true parser will try to generate timestamps
                 starting from 0 and increasing them by frame duration.
-                Otherwise it will pass pts from input to output, even if it's nil.
-                In case `ogg.page_pts` metadata field is present in incoming buffers
-                timestamps will be generated based on it and frame durations, regardless of
-                this option's value.
+
+                Otherwise parser will pass pts from input to output, even if it's nil.
+                However, if `ogg.page_pts` metadata field is present in incoming buffers,
+                timestamps will be generated based on it and frame durations.
                 """
               ]
 
@@ -91,7 +91,7 @@ defmodule Membrane.Opus.Parser do
   end
 
   defp set_current_pts(
-         %{current_pts: current_pts} = state,
+         %{current_pts: current_pts, generate_best_effort_timestamps?: false} = state,
          _input_pts,
          %{ogg: %{page_pts: ogg_page_pts}} = _metadata
        )
@@ -99,19 +99,19 @@ defmodule Membrane.Opus.Parser do
     cond do
       current_pts < ogg_page_pts ->
         Membrane.Logger.debug(
-          "Best effort PTS calculated from frame durations (#{current_pts}) is smaller the one based on OGG granule position (#{ogg_page_pts}), assuming the latter one as correct."
+          "timestamp calculated from frame durations (#{current_pts}) is smaller the one based on OGG granule position (#{ogg_page_pts}), assuming the latter one as correct."
         )
 
       current_pts > ogg_page_pts ->
         Membrane.Logger.warning(
-          "Best effort PTS calculated from frame durations (#{current_pts}) overlaps with the one based on OGG granule position (#{ogg_page_pts}), assuming the latter one as correct."
+          "timestamp calculated from frame durations (#{current_pts}) overlaps with the one based on OGG granule position (#{ogg_page_pts}), assuming the latter one as correct."
         )
 
       current_pts == ogg_page_pts ->
         :ok
     end
 
-    %{state | current_pts: ogg_page_pts, generate_best_effort_timestamps?: true}
+    %{state | current_pts: ogg_page_pts}
   end
 
   defp set_current_pts(
