@@ -16,7 +16,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       normal: <<4>>,
       delimited: <<4, 0>>,
       channels: 2,
-      duration: 0,
+      duration: 10 |> milliseconds(),
       pts: 0
     },
     %{
@@ -25,7 +25,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<121, 2, 0, 0, 0, 0>>,
       channels: 1,
       duration: 40 |> milliseconds(),
-      pts: 0
+      pts: 10 |> milliseconds()
     },
     %{
       desc: "code 2",
@@ -33,7 +33,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<198, 1, 3, 0, 0, 0, 0>>,
       channels: 2,
       duration: 5 |> milliseconds(),
-      pts: 40 |> milliseconds()
+      pts: 50 |> milliseconds()
     },
     %{
       desc: "code 3 cbr, no padding",
@@ -41,7 +41,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<199, 3, 1, 0, 0, 0>>,
       channels: 2,
       duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: 45 |> milliseconds()
+      pts: 55 |> milliseconds()
     },
     %{
       desc: "code 3 cbr, padding",
@@ -49,7 +49,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<199, 67, 2, 1, 0, 0, 0, 0, 0>>,
       channels: 2,
       duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: (52.5 * 1_000_000) |> trunc() |> nanoseconds()
+      pts: (62.5 * 1_000_000) |> trunc() |> nanoseconds()
     },
     %{
       desc: "code 3 vbr, no padding",
@@ -57,7 +57,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       delimited: <<199, 131, 1, 2, 1, 0, 0, 0, 0>>,
       channels: 2,
       duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: 60 |> milliseconds()
+      pts: 70 |> milliseconds()
     },
     %{
       desc: "code 3 vbr, no padding, long length",
@@ -85,7 +85,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
           0, 0, 3, 3, 3>>,
       channels: 2,
       duration: (2.5 * 3 * 1_000_000) |> trunc() |> nanoseconds(),
-      pts: (67.5 * 1_000_000) |> trunc() |> nanoseconds()
+      pts: (77.5 * 1_000_000) |> trunc() |> nanoseconds()
     }
   ]
 
@@ -248,7 +248,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       assert_sink_buffer(pipeline, :sink, ^expected_buffer, 4000)
     end)
 
-    refute_sink_buffer(pipeline, :sink, 0)
+    refute_sink_buffer(pipeline, :sink, _, 0)
 
     @fixtures
     |> Enum.map(& &1.channels)
