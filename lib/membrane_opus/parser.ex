@@ -155,7 +155,7 @@ defmodule Membrane.Opus.Parser do
            FrameLengths.parse(frame_packing, data, state.input_delimitted?),
          expected_packet_size <- header_size + Enum.sum(frame_lengths) + padding_size,
          {:ok, raw_packet, rest} <- rest_of_packet(data, expected_packet_size) do
-      {elapsed_time, duration} = elapsed_time(frame_lengths, frame_duration)
+      duration = elapsed_time(frame_lengths, frame_duration)
 
       packet = %Buffer{
         pts: state.current_pts,
@@ -169,7 +169,7 @@ defmodule Membrane.Opus.Parser do
         if state.current_pts == nil do
           state
         else
-          %{state | current_pts: state.current_pts + elapsed_time}
+          %{state | current_pts: state.current_pts + duration}
         end
 
       maybe_parse(
@@ -211,13 +211,8 @@ defmodule Membrane.Opus.Parser do
   end
 
   @spec elapsed_time(frame_lengths :: [non_neg_integer()], frame_duration :: pos_integer()) ::
-          {elapsed_time :: Membrane.Time.non_neg(), duration :: Membrane.Time.non_neg()}
+          duration :: Membrane.Time.non_neg()
   defp elapsed_time(frame_lengths, frame_duration) do
-    # if a frame has length 0 it indicates a dropped frame and will be added to elapsed_time, but
-    # not duration
-    {
-      length(frame_lengths) * frame_duration,
-      Enum.count(frame_lengths, fn length -> length > 0 end) * frame_duration
-    }
+    length(frame_lengths) * frame_duration
   end
 end
