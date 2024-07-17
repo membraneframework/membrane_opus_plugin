@@ -173,7 +173,12 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp set_current_pts(%{queue: <<>>} = state, input_pts) do
-    %{state | current_pts: input_pts}
+    if state.current_pts != nil and state.current_pts > input_pts do
+      Membrane.Logger.warning("Input PTS > current PTS")
+      state
+    else
+      %{state | current_pts: input_pts}
+    end
   end
 
   defp set_current_pts(state, _input_pts), do: state
