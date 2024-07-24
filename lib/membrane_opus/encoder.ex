@@ -175,12 +175,19 @@ defmodule Membrane.Opus.Encoder do
       diff = (state.current_pts - input_pts) |> Time.nanoseconds()
       ms = diff |> Time.as_milliseconds(:round)
 
-      message =
-        "Input buffer PTS is #{Time.pretty_duration(diff)} (#{ms} ms) smaller than expected value"
-
       cond do
-        diff > Time.milliseconds(100) -> Membrane.Logger.warning(message)
-        diff > Time.milliseconds(10) -> Membrane.Logger.debug(message)
+        diff > Time.milliseconds(100) ->
+          Membrane.Logger.warning(
+            "Input buffer PTS is #{Time.pretty_duration(diff)} (#{ms} ms) smaller than expected value"
+          )
+
+        diff > Time.milliseconds(10) ->
+          Membrane.Logger.debug(
+            "Input buffer PTS is #{Time.pretty_duration(diff)} (#{ms} ms) smaller than expected value"
+          )
+
+        true ->
+          :ok
       end
 
       state
