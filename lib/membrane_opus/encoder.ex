@@ -173,7 +173,7 @@ defmodule Membrane.Opus.Encoder do
   defp set_current_pts(%{queue: <<>>} = state, input_pts) do
     if state.current_pts != nil and input_pts != nil and state.current_pts > input_pts do
       diff = (state.current_pts - input_pts) |> Time.nanoseconds()
-      ms = diff / 1_000_000
+      ms = diff |> Time.as_milliseconds(:round)
 
       message =
         "Input buffer PTS is #{Time.pretty_duration(diff)} (#{ms} ms) smaller than expected value"
