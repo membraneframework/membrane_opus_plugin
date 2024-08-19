@@ -75,18 +75,18 @@ defmodule Membrane.Opus.Util do
     if output_pts == nil or input_pts == nil do
       :ok
     else
-      # diff constantly oscilates between about 2ms - 22ms
+      # Diff constantly oscillates between approximately 2 ms - 22 ms.
       diff = output_pts - input_pts
       epsilon = 30 |> milliseconds()
 
       cond do
         diff > epsilon ->
-          Membrane.Logger.warning("Input PTS value is overlapping output PTS more than expected")
-
-        diff < 0 ->
           Membrane.Logger.warning(
             "Input PTS value is lagging behind calculated output PTS more than expected"
           )
+
+        diff < 0 ->
+          Membrane.Logger.warning("Input PTS value is overlapping output PTS")
 
         true ->
           :ok
