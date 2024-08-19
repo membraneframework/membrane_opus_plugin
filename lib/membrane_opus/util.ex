@@ -3,6 +3,7 @@ defmodule Membrane.Opus.Util do
   # Miscellaneous utility functions
   import Membrane.Time
   require Membrane.Logger
+  alias Membrane.Buffer
 
   @spec parse_toc_byte(data :: binary) ::
           {:ok, config_number :: 0..31, stereo_flag :: 0..1, frame_packing :: 0..3} | :error
@@ -69,17 +70,27 @@ defmodule Membrane.Opus.Util do
 
   @spec validate_pts_integrity([Membrane.Buffer.t()], integer()) :: :ok
   def validate_pts_integrity(packets, input_pts) do
-    cond do
-      length(packets) < 2 or Enum.at(packets, 1).pts == input_pts ->
-        :ok
+    %Buffer{pts: output_pts} = List.first(packets)
 
-      Enum.at(packets, 1).pts > input_pts ->
-        Membrane.Logger.warning("PTS values are overlapping")
-        :ok
+    if output_pts == nil or input_pts == nil do
+      :ok
+    else
+      # diff constantly oscilates between about 2ms - 22ms
+      diff = output_pts - input_pts
+      epsilon = 30 |> milliseconds()
 
-      Enum.at(packets, 1).pts < input_pts ->
-        Membrane.Logger.warning("PTS values are not continous")
-        :ok
+      cond do
+        diff > epsilon ->
+          Membrane.Logger.warning("Input PTS value is overlapping output PTS more than expected")
+
+        diff < 0 ->
+          Membrane.Logger.warning(
+            "Input PTS value is lagging behind calculated output PTS more than expected"
+          )
+
+        true ->
+          :ok
+      end
     end
   end
 end

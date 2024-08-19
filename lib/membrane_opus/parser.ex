@@ -105,7 +105,9 @@ defmodule Membrane.Opus.Parser do
         set_current_pts(state, input_pts)
       )
 
-    if check_pts_integrity? do
+    packets_len = length(packets)
+
+    if check_pts_integrity? and packets_len > 0 do
       Util.validate_pts_integrity(packets, input_pts)
     end
 
@@ -113,8 +115,6 @@ defmodule Membrane.Opus.Parser do
       self_delimiting?: self_delimiting?,
       channels: channels
     }
-
-    packets_len = length(packets)
 
     packet_actions =
       cond do
