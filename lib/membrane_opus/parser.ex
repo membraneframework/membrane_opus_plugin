@@ -15,6 +15,7 @@ defmodule Membrane.Opus.Parser do
   alias Membrane.Opus.Util
 
   @type delimitation_t :: :delimit | :undelimit | :keep
+  @dialyzer {:nowarn_function, maybe_parse: 5}
 
   def_options delimitation: [
                 spec: delimitation_t(),
