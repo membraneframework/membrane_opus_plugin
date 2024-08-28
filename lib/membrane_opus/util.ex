@@ -75,8 +75,14 @@ defmodule Membrane.Opus.Util do
     if output_pts == nil or input_pts == nil do
       :ok
     else
-      # Diff constantly oscillates between approximately 2 ms - 22 ms.
+      # Opus encoder and parser output each frame with pts = previous_pts + frame duration. If the first two input frames have pts = 0,
+      # the first one will be outputted with pts = 0 and the next with pts = 20000000 (20 ms), making output pts "overtake" input pts by one frame length.
+      # Over time, as Opus receives more frames, each with arbitrary length, and tries to output exactly 20 ms long frames,
+      # it buffers some data before outputting it, allowing input pts to catch up. In effect, the difference between output and input pts oscillates
+      # between 2 ms and 22 ms. Warnings are emitted only if this difference exceeds 30 ms.
+
       diff = output_pts - input_pts
+
       epsilon = 30 |> milliseconds()
 
       cond do
