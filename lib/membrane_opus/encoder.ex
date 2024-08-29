@@ -8,10 +8,8 @@ defmodule Membrane.Opus.Encoder do
   require Membrane.Logger
 
   alias __MODULE__.Native
-  alias Membrane.Buffer
-  alias Membrane.Opus
   alias Membrane.Opus.Util
-  alias Membrane.RawAudio
+  alias Membrane.{Buffer, Opus, RawAudio, Time}
 
   @allowed_channels [1, 2]
   @allowed_applications [:voip, :audio, :low_delay]
@@ -173,7 +171,28 @@ defmodule Membrane.Opus.Encoder do
   end
 
   defp set_current_pts(%{queue: <<>>} = state, input_pts) do
-    %{state | current_pts: input_pts}
+    if state.current_pts != nil and input_pts != nil and state.current_pts > input_pts do
+      diff = state.current_pts - input_pts
+
+      cond do
+        diff > Time.milliseconds(100) ->
+          Membrane.Logger.warning(
+            "Expexted input buffer PTS to be #{state.current_pts}, got #{input_pts}, diff #{Time.pretty_duration(diff)}"
+          )
+
+        diff > Time.milliseconds(10) ->
+          Membrane.Logger.debug(
+            "Expexted input buffer PTS to be #{state.current_pts}, got #{input_pts}, diff #{Time.pretty_duration(diff)}"
+          )
+
+        true ->
+          :ok
+      end
+
+      state
+    else
+      %{state | current_pts: input_pts}
+    end
   end
 
   defp set_current_pts(state, _input_pts), do: state

@@ -3,6 +3,7 @@ defmodule Membrane.Opus.Util do
   # Miscellaneous utility functions
   import Membrane.Time
   require Membrane.Logger
+  alias Membrane.Buffer
 
   @spec parse_toc_byte(data :: binary) ::
           {:ok, config_number :: 0..31, stereo_flag :: 0..1, frame_packing :: 0..3} | :error
@@ -69,17 +70,33 @@ defmodule Membrane.Opus.Util do
 
   @spec validate_pts_integrity([Membrane.Buffer.t()], integer()) :: :ok
   def validate_pts_integrity(packets, input_pts) do
-    cond do
-      length(packets) < 2 or Enum.at(packets, 1).pts == input_pts ->
-        :ok
+    %Buffer{pts: output_pts} = List.first(packets)
 
-      Enum.at(packets, 1).pts > input_pts ->
-        Membrane.Logger.warning("PTS values are overlapping")
-        :ok
+    if output_pts == nil or input_pts == nil do
+      :ok
+    else
+      # Opus encoder and parser output each frame with pts = previous_pts + frame duration. If the first two input frames have pts = 0,
+      # the first one will be outputted with pts = 0 and the next with pts = 20000000 (20 ms), making output pts "overtake" input pts by one frame length.
+      # Over time, as Opus receives more frames, each with arbitrary length, and tries to output exactly 20 ms long frames,
+      # it buffers some data before outputting it, allowing input pts to catch up. In effect, the difference between output and input pts oscillates
+      # between 2 ms and 22 ms. Warnings are emitted only if this difference exceeds 30 ms.
 
-      Enum.at(packets, 1).pts < input_pts ->
-        Membrane.Logger.warning("PTS values are not continous")
-        :ok
+      diff = output_pts - input_pts
+
+      epsilon = 30 |> milliseconds()
+
+      cond do
+        diff > epsilon ->
+          Membrane.Logger.warning(
+            "Input PTS value is lagging behind calculated output PTS more than expected"
+          )
+
+        diff < 0 ->
+          Membrane.Logger.warning("Input PTS value is overlapping output PTS")
+
+        true ->
+          :ok
+      end
     end
   end
 end
