@@ -8,7 +8,6 @@ defmodule Membrane.Opus.Encoder do
   require Membrane.Logger
 
   alias __MODULE__.Native
-  alias Membrane.Opus.Util
   alias Membrane.{Buffer, Opus, RawAudio, Time}
 
   @allowed_channels [1, 2]
@@ -133,8 +132,6 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, _ctx, state) do
-    check_pts_integrity? = state.queue != <<>>
-
     case encode_buffer(
            state.queue <> data,
            set_current_pts(state, input_pts),
@@ -146,9 +143,6 @@ defmodule Membrane.Opus.Encoder do
 
       {:ok, encoded_buffers, state} ->
         # something was encoded
-        if check_pts_integrity? do
-          Util.validate_pts_integrity(encoded_buffers, input_pts)
-        end
 
         {[buffer: {:output, encoded_buffers}], state}
     end
