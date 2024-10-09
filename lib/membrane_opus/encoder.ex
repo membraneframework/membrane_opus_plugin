@@ -137,14 +137,10 @@ defmodule Membrane.Opus.Encoder do
            set_current_pts(state, input_pts),
            frame_size_in_bytes(state)
          ) do
-      {:ok, [], state} ->
-        # nothing was encoded
-        {[], state}
-
       {:ok, encoded_buffers, state} ->
-        # something was encoded
+        actions = Enum.map(encoded_buffers, &{:buffer, {:output, &1}})
 
-        {[buffer: {:output, encoded_buffers}], state}
+        {actions, state}
     end
   end
 
