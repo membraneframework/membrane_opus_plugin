@@ -132,16 +132,16 @@ defmodule Membrane.Opus.Encoder do
 
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, _ctx, state) do
-    case encode_buffer(
-           state.queue <> data,
-           set_current_pts(state, input_pts),
-           frame_size_in_bytes(state)
-         ) do
-      {:ok, encoded_buffers, state} ->
-        actions = Enum.map(encoded_buffers, &{:buffer, {:output, &1}})
+    {:ok, encoded_buffers, state} =
+      encode_buffer(
+        state.queue <> data,
+        set_current_pts(state, input_pts),
+        frame_size_in_bytes(state)
+      )
 
-        {actions, state}
-    end
+    actions = Enum.map(encoded_buffers, &{:buffer, {:output, &1}})
+
+    {actions, state}
   end
 
   @impl true
