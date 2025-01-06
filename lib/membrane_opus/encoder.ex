@@ -13,10 +13,14 @@ defmodule Membrane.Opus.Encoder do
   @allowed_channels [1, 2]
   @allowed_applications [:voip, :audio, :low_delay]
   @allowed_sample_rates [8000, 12_000, 16_000, 24_000, 48_000]
+  @allowed_bitrates [:auto, :max, 10_000, 24_000, 32_000, 64_000, 96_000, 128_000, 256_000, 450_000]
+  @allowed_signal_type [:auto, :voice, :music]
 
   @type allowed_channels :: unquote(Bunch.Typespec.enum_to_alternative(@allowed_channels))
   @type allowed_applications :: unquote(Bunch.Typespec.enum_to_alternative(@allowed_applications))
   @type allowed_sample_rates :: unquote(Bunch.Typespec.enum_to_alternative(@allowed_sample_rates))
+  @type allowed_bitrates :: unquote(Bunch.Typespec.enum_to_alternative(@allowed_bitrates))
+  @type allowed_signal_types :: unquote(Bunch.Typespec.enum_to_alternative(@allowed_signal_type))
 
   def_options application: [
                 spec: allowed_applications(),
@@ -25,6 +29,26 @@ defmodule Membrane.Opus.Encoder do
                 Output type (similar to compression amount).
 
                 See https://opus-codec.org/docs/opus_api-1.3.1/group__opus__encoder.html#gaa89264fd93c9da70362a0c9b96b9ca88.
+                """
+              ],
+              bitrate: [
+                spec: allowed_bitrates(),
+                default: :auto,
+                description: """
+                Explicit control of the Opus codec bitrate.
+                This can be :auto (default, OPUS_BITRATE_AUTO), :max (OPUS_BITRATE_MAX) or a value from 500 to 512000 bits per second.
+
+                See https://www.opus-codec.org/docs/html_api/group__opusencoder.html and https://www.opus-codec.org/docs/html_api/group__encoderctls.html#ga0bb51947e355b33d0cb358463b5101a7
+                """
+              ],
+              signal_type: [
+                spec: allowed_signal_types(),
+                default: :auto,
+                description: """
+                Explicit control of the Opus signal type.
+                This can be :auto (default, OPUS_SIGNAL_AUTO), :voice (OPUS_SIGNAL_VOICE) or :music (OPUS_SIGNAL_MUSIC)
+
+                See https://www.opus-codec.org/docs/html_api/group__opusencoder.html and https://www.opus-codec.org/docs/html_api/group__encoderctls.html#gaaa87ccee4ae46aa6c9528e03c5122b89
                 """
               ],
               input_stream_format: [
@@ -190,8 +214,10 @@ defmodule Membrane.Opus.Encoder do
   defp mk_native!(state) do
     with {:ok, channels} <- validate_channels(state.input_stream_format.channels),
          {:ok, input_rate} <- validate_sample_rate(state.input_stream_format.sample_rate),
-         {:ok, application} <- map_application_to_value(state.application) do
-      Native.create(input_rate, channels, application)
+         {:ok, application} <- map_application_to_value(state.application),
+         {:ok, bitrate} <- validate_bitrate(state.bitrate),
+         {:ok, signal_type} <- validate_signal_type(state.signal_type) do
+      Native.create(input_rate, channels, application, bitrate, signal_type)
     else
       {:error, reason} ->
         raise "Failed to create encoder, reason: #{inspect(reason)}"
@@ -215,6 +241,24 @@ defmodule Membrane.Opus.Encoder do
 
   defp validate_channels(channels) when channels in @allowed_channels, do: {:ok, channels}
   defp validate_channels(_invalid_channels), do: {:error, "Invalid channels"}
+
+  defp validate_bitrate(bitrate) when bitrate in @allowed_bitrates do
+    case bitrate do
+      :auto -> {:ok, -1000}
+      :max -> {:ok, -1}
+      value -> {:ok, value}
+    end
+  end
+  defp validate_bitrate(_invalid_bitrates), do: {:error, "Invalid bitrate"}
+
+  defp validate_signal_type(signal_type) when signal_type in @allowed_signal_type do
+    case signal_type do
+      :auto -> {:ok, -1000}
+      :voice -> {:ok, 3001}
+      :music -> {:ok, 3002}
+    end
+  end
+  defp validate_signal_type(_invalid_signal_type), do: {:error, "Invalid signal type"}
 
   defp frame_size(state) do
     # 20 milliseconds
