@@ -13,7 +13,18 @@ defmodule Membrane.Opus.Encoder do
   @allowed_channels [1, 2]
   @allowed_applications [:voip, :audio, :low_delay]
   @allowed_sample_rates [8000, 12_000, 16_000, 24_000, 48_000]
-  @allowed_bitrates [:auto, :max, 10_000, 24_000, 32_000, 64_000, 96_000, 128_000, 256_000, 450_000]
+  @allowed_bitrates [
+    :auto,
+    :max,
+    10_000,
+    24_000,
+    32_000,
+    64_000,
+    96_000,
+    128_000,
+    256_000,
+    450_000
+  ]
   @allowed_signal_type [:auto, :voice, :music]
 
   @type allowed_channels :: unquote(Bunch.Typespec.enum_to_alternative(@allowed_channels))
@@ -215,8 +226,8 @@ defmodule Membrane.Opus.Encoder do
     with {:ok, channels} <- validate_channels(state.input_stream_format.channels),
          {:ok, input_rate} <- validate_sample_rate(state.input_stream_format.sample_rate),
          {:ok, application} <- map_application_to_value(state.application),
-         {:ok, bitrate} <- validate_bitrate(state.bitrate),
-         {:ok, signal_type} <- validate_signal_type(state.signal_type) do
+         {:ok, bitrate} <- parse_bitrate(state.bitrate),
+         {:ok, signal_type} <- parse_signal_type(state.signal_type) do
       Native.create(input_rate, channels, application, bitrate, signal_type)
     else
       {:error, reason} ->
@@ -242,23 +253,25 @@ defmodule Membrane.Opus.Encoder do
   defp validate_channels(channels) when channels in @allowed_channels, do: {:ok, channels}
   defp validate_channels(_invalid_channels), do: {:error, "Invalid channels"}
 
-  defp validate_bitrate(bitrate) when bitrate in @allowed_bitrates do
+  defp parse_bitrate(bitrate) when bitrate in @allowed_bitrates do
     case bitrate do
       :auto -> {:ok, -1000}
       :max -> {:ok, -1}
       value -> {:ok, value}
     end
   end
-  defp validate_bitrate(_invalid_bitrates), do: {:error, "Invalid bitrate"}
 
-  defp validate_signal_type(signal_type) when signal_type in @allowed_signal_type do
+  defp parse_bitrate(_invalid_bitrates), do: {:error, "Invalid bitrate"}
+
+  defp parse_signal_type(signal_type) when signal_type in @allowed_signal_type do
     case signal_type do
       :auto -> {:ok, -1000}
       :voice -> {:ok, 3001}
       :music -> {:ok, 3002}
     end
   end
-  defp validate_signal_type(_invalid_signal_type), do: {:error, "Invalid signal type"}
+
+  defp parse_signal_type(_invalid_signal_type), do: {:error, "Invalid signal type"}
 
   defp frame_size(state) do
     # 20 milliseconds
