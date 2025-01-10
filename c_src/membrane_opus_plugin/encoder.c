@@ -24,12 +24,22 @@ static char *get_error(int err_code) {
   }
 }
 
-UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application) {
+UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application, int bitrate, int signal_type) {
   State *state = unifex_alloc_state(env);
   state->buffer = calloc(MAX_PACKET, sizeof(unsigned char));
 
   int error = 0;
   state->encoder = opus_encoder_create(input_rate, channels, application, &error);
+  if (error != OPUS_OK) {
+    unifex_release_state(env, state);
+    return unifex_raise(env, (char *)opus_strerror(error));
+  }
+  opus_encoder_ctl(state->encoder, OPUS_SET_BITRATE(bitrate), &error);
+  if (error != OPUS_OK) {
+    unifex_release_state(env, state);
+    return unifex_raise(env, (char *)opus_strerror(error));
+  }
+  opus_encoder_ctl(state->encoder, OPUS_SET_SIGNAL(signal_type), &error);
   if (error != OPUS_OK) {
     unifex_release_state(env, state);
     return unifex_raise(env, (char *)opus_strerror(error));
