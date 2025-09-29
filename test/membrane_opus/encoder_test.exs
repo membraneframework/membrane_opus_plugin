@@ -12,8 +12,6 @@ defmodule Membrane.Opus.Encoder.EncoderTest do
   @reference_path "test/fixtures/encoder_output_reference"
 
   defp setup_pipeline(output_path) do
-    on_exit(fn -> File.rm(output_path) end)
-
     spec = [
       child(:source, %Membrane.File.Source{
         location: @input_path
