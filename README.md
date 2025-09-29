@@ -15,7 +15,7 @@ The package can be installed by adding `membrane_opus_plugin` to your list of de
 ```elixir
 def deps do
   [
-    {:membrane_opus_plugin, "~> 0.20.5"}
+    {:membrane_opus_plugin, "~> 0.20.6"}
   ]
 end
 ```
@@ -64,7 +64,7 @@ defmodule Membrane.ReleaseTest.Pipeline do
 
   @impl true
   def handle_init(_ctx, _options) do
-    structure = 
+    structure =
       child(:source, %Membrane.File.Source{
         location: @input_filename
       })
@@ -103,7 +103,7 @@ defmodule Membrane.ReleaseTest.Pipeline2 do
 
   @impl true
   def handle_init(_ctx, _options) do
-    structure = 
+    structure =
       child(:source, %Membrane.File.Source{
         location: @input_filename
       })

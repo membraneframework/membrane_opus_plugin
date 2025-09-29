@@ -13,7 +13,8 @@ defmodule Membrane.Opus.BundlexProject do
         sources: ["decoder.c"],
         os_deps: [
           opus: [
-            {:precompiled, Membrane.PrecompiledDependencyProvider.get_dependency_url(:opus)},
+            {:precompiled,
+             Membrane.PrecompiledDependencyProvider.get_dependency_url(:opus, version: "1.5.2")},
             :pkg_config
           ]
         ],
@@ -25,7 +26,8 @@ defmodule Membrane.Opus.BundlexProject do
         sources: ["encoder.c"],
         os_deps: [
           opus: [
-            {:precompiled, Membrane.PrecompiledDependencyProvider.get_dependency_url(:opus)},
+            {:precompiled,
+             Membrane.PrecompiledDependencyProvider.get_dependency_url(:opus, version: "1.5.2")},
             :pkg_config
           ]
         ],

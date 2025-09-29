@@ -1,7 +1,7 @@
 defmodule Membrane.Opus.Plugin.Mixfile do
   use Mix.Project
 
-  @version "0.20.5"
+  @version "0.20.6"
   @github_url "https://github.com/membraneframework/membrane_opus_plugin"
 
   def project do
@@ -43,7 +43,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       {:unifex, "~> 1.0"},
       {:membrane_common_c, "~> 0.16.0"},
       {:bundlex, "~> 1.2"},
-      {:membrane_precompiled_dependency_provider, "~> 0.1.0"},
+      {:membrane_precompiled_dependency_provider, "~> 0.2.0"},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:credo, ">= 0.0.0", only: :dev, runtime: false},
