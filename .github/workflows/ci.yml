@@ -14,3 +14,6 @@ jobs:
 
   test:
     uses: membraneframework/membrane_actions/.github/workflows/test.yml@main
+    with:
+      runner: ubuntu-24.04-arm
+
