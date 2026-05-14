@@ -5,9 +5,9 @@ defmodule Membrane.Opus.Parser.ParserTest do
   import Membrane.Testing.Assertions
   import Membrane.ChildrenSpec
 
+  alias Membrane.{Buffer, Opus}
   alias Membrane.Opus.Parser
   alias Membrane.RemoteStream
-  alias Membrane.{Buffer, Opus}
   alias Membrane.Testing.{Pipeline, Sink, Source}
 
   @fixtures [

@@ -8,7 +8,7 @@ defmodule Membrane.Opus.Decoder do
   require Membrane.Logger
 
   alias __MODULE__.Native
-  alias Membrane.{Buffer, Opus, RemoteStream}
+  alias Membrane.{Opus, RemoteStream}
   alias Membrane.Opus.Util
   alias Membrane.RawAudio
 
@@ -62,7 +62,7 @@ defmodule Membrane.Opus.Decoder do
       {stream_format, state} = maybe_make_native(channels, state)
 
       decoded = Native.decode_packet(state.native, buffer.payload)
-      buffer = %Buffer{buffer | payload: decoded}
+      buffer = %{buffer | payload: decoded}
       {stream_format ++ [buffer: {:output, buffer}], state}
     end
   end
