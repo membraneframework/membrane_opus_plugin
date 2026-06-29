@@ -1,7 +1,7 @@
 defmodule Membrane.Opus.Plugin.Mixfile do
   use Mix.Project
 
-  @version "0.20.7"
+  @version "0.20.8"
   @github_url "https://github.com/membraneframework/membrane_opus_plugin"
 
   def project do
@@ -23,7 +23,8 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       name: "Membrane Opus plugin",
       source_url: @github_url,
       docs: docs(),
-      homepage_url: "https://membrane.stream"
+      homepage_url: "https://membrane.stream",
+      aliases: [docs: ["docs", &append_llms_links/1]]
     ]
   end
 
@@ -45,7 +46,7 @@ defmodule Membrane.Opus.Plugin.Mixfile do
       {:bundlex, "~> 1.2"},
       {:membrane_precompiled_dependency_provider, "~> 0.2.0"},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.40.0", only: :dev, runtime: false},
       {:credo, ">= 0.0.0", only: :dev, runtime: false},
       {:membrane_file_plugin, "~> 0.16.0", only: :test},
       {:membrane_raw_audio_parser_plugin, "~> 0.4.0", only: :test}
@@ -82,10 +83,31 @@ defmodule Membrane.Opus.Plugin.Mixfile do
   defp docs do
     [
       main: "readme",
-      formatters: ["html"],
       extras: ["README.md", "LICENSE"],
       source_ref: "v#{@version}",
       nest_modules_by_prefix: [Membrane.Opus]
     ]
+  end
+
+  defp append_llms_links(_args) do
+    output_dir = docs()[:output] || "doc"
+    path = Path.join(output_dir, "llms.txt")
+
+    if File.exists?(path) do
+      existing = File.read!(path)
+
+      footer = """
+
+
+      ## See Also
+
+      - [Membrane Framework AI Skill](https://hexdocs.pm/membrane_core/skill.md)
+      - [Membrane Core](https://hexdocs.pm/membrane_core/llms.txt)
+      """
+
+      File.write!(path, String.trim_trailing(existing) <> footer)
+    else
+      IO.warn("#{path} not found — llms.txt was not generated, check your ex_doc configuration")
+    end
   end
 end
