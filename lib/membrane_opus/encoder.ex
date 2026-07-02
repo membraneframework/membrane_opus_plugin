@@ -287,7 +287,7 @@ defmodule Membrane.Opus.Encoder do
   defp encode_buffer(raw_buffer, state, target_byte_size, encoded_frames)
        when byte_size(raw_buffer) >= target_byte_size do
     # Encode a single frame because buffer contains at least one frame
-    <<raw_frame::binary-size(target_byte_size), rest::binary>> = raw_buffer
+    <<raw_frame::binary-size(^target_byte_size), rest::binary>> = raw_buffer
     {:ok, raw_encoded} = Native.encode_packet(state.native, raw_frame, frame_size(state))
 
     # maybe keep encoding if there are more frames

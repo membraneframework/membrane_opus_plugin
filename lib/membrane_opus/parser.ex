@@ -95,36 +95,44 @@ defmodule Membrane.Opus.Parser do
   end
 
   @impl true
-  def handle_stream_format(:input, %RemoteStream{}, _ctx, state) do
-    {[], %{state | input_self_delimiting?: state.assume_input_self_delimiting?}}
+  def handle_stream_format(:input, %RemoteStream{}, _ctx, %State{} = state) do
+    {[], %State{state | input_self_delimiting?: state.assume_input_self_delimiting?}}
   end
 
   @impl true
-  def handle_stream_format(:input, %Opus{self_delimiting?: self_delimiting?}, _ctx, state) do
-    {[], %{state | input_self_delimiting?: self_delimiting?}}
+  def handle_stream_format(
+        :input,
+        %Opus{self_delimiting?: self_delimiting?},
+        _ctx,
+        %State{} = state
+      ) do
+    {[], %State{state | input_self_delimiting?: self_delimiting?}}
   end
 
   defp set_current_pts(
-         %{generate_best_effort_timestamps?: true, current_pts: nil} = state,
+         %State{generate_best_effort_timestamps?: true, current_pts: nil} = state,
          _input_pts
        ) do
-    %{state | current_pts: 0}
+    %State{state | current_pts: 0}
   end
 
-  defp set_current_pts(%{generate_best_effort_timestamps?: false, queue: <<>>} = state, input_pts) do
-    %{state | current_pts: input_pts}
+  defp set_current_pts(
+         %State{generate_best_effort_timestamps?: false, queue: <<>>} = state,
+         input_pts
+       ) do
+    %State{state | current_pts: input_pts}
   end
 
-  defp set_current_pts(state, _input_pts), do: state
+  defp set_current_pts(%State{} = state, _input_pts), do: state
 
   @impl true
-  def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, ctx, state) do
+  def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, ctx, %State{} = state) do
     {delimitation_processor, self_delimiting?} =
       Delimitation.get_processor(state.delimitation, state.input_self_delimiting?)
 
     check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_timestamps?
 
-    {:ok, queue, packets, channels, state} =
+    {:ok, queue, packets, channels, %State{} = state} =
       maybe_parse(
         state.queue <> data,
         delimitation_processor,
@@ -154,7 +162,7 @@ defmodule Membrane.Opus.Parser do
           []
       end
 
-    {packet_actions, %{state | queue: queue}}
+    {packet_actions, %State{state | queue: queue}}
   end
 
   defp maybe_parse(
@@ -170,7 +178,7 @@ defmodule Membrane.Opus.Parser do
          processor,
          packets,
          channels,
-         state
+         %State{} = state
        )
        when byte_size(data) > 0 do
     with {:ok, configuration_number, stereo_flag, frame_packing} <- Util.parse_toc_byte(data),
@@ -195,7 +203,7 @@ defmodule Membrane.Opus.Parser do
         if state.current_pts == nil do
           state
         else
-          %{state | current_pts: state.current_pts + duration}
+          %State{state | current_pts: state.current_pts + duration}
         end
 
       maybe_parse(
@@ -219,7 +227,7 @@ defmodule Membrane.Opus.Parser do
          _processor,
          packets,
          channels,
-         state
+         %State{} = state
        ) do
     {:ok, data, packets |> Enum.reverse(), channels, state}
   end
@@ -228,7 +236,7 @@ defmodule Membrane.Opus.Parser do
           {:ok, raw_packet :: binary, rest :: binary} | {:error, :cont}
   defp rest_of_packet(data, expected_packet_size) do
     case data do
-      <<raw_packet::binary-size(expected_packet_size), rest::binary>> ->
+      <<raw_packet::binary-size(^expected_packet_size), rest::binary>> ->
         {:ok, raw_packet, rest}
 
       _otherwise ->

@@ -234,7 +234,7 @@ defmodule Membrane.Opus.Parser.FrameLengths do
     do: :error
 
   defp calculate_frame_length(data, byte_offset) do
-    <<_head::binary-size(byte_offset), length, rest::binary>> = data
+    <<_head::binary-size(^byte_offset), length, rest::binary>> = data
 
     cond do
       length < 252 ->
