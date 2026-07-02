@@ -21,27 +21,26 @@ defmodule Membrane.Opus.Parser do
                 spec: delimitation_t(),
                 default: :keep,
                 description: """
-                If input is delimitted? (as indicated by the `self_delimiting?`
-                field in %Opus) and `:undelimit` is selected, will remove delimiting.
+                If input is self-delimiting and `:undelimit` is selected, delimiting will be removed.
 
-                If input is not delimitted? and `:delimit` is selected, will add delimiting.
+                If input is not self-delimiting and `:delimit` is selected, delimiting will be added.
 
-                If `:keep` is selected, will not change delimiting.
-
-                Otherwise will act like `:keep`.
+                If `:keep` is selected, delimiting will stay unchanged.
 
                 See https://tools.ietf.org/html/rfc6716#appendix-B for details
                 on the self-delimiting Opus format.
                 """
               ],
-              input_delimitted?: [
+              # Remote
+              # Opus undel
+              # Opus del
+              assume_input_self_delimiting?: [
                 spec: boolean(),
                 default: false,
                 description: """
-                If you know that the input is self-delimitted? but you're reading from
-                some element that isn't sending the correct structure, you can set this
-                to true to force the Parser to assume the input is self-delimitted? and
-                ignore upstream stream_format information on self-delimitation.
+                If an input stream format is a `Membrane.RemoteStream`, then the
+                delimitation provided with this option will be assumed.
+                If it's `Membrane.Opus`, then this option will be ignored.
                 """
               ],
               generate_best_effort_timestamps?: [
@@ -60,23 +59,49 @@ defmodule Membrane.Opus.Parser do
 
   def_output_pad :output, accepted_format: Opus
 
+  defmodule State do
+    @moduledoc false
+
+    alias Membrane.Opus.Parser
+
+    @type t :: %__MODULE__{
+            delimitation: Parser.delimitation_t(),
+            assume_input_self_delimiting?: boolean(),
+            generate_best_effort_timestamps?: boolean(),
+            current_pts: Membrane.Time.t() | nil,
+            queue: binary(),
+            input_self_delimiting?: boolean()
+          }
+
+    @enforce_keys [
+      :delimitation,
+      :assume_input_self_delimiting?,
+      :generate_best_effort_timestamps?
+    ]
+
+    defstruct @enforce_keys ++
+                [
+                  current_pts: nil,
+                  queue: <<>>,
+                  input_self_delimiting?: false
+                ]
+  end
+
   @impl true
-  def handle_init(_ctx, %__MODULE__{} = options) do
-    state =
-      options
-      |> Map.from_struct()
-      |> Map.merge(%{
-        current_pts: nil,
-        queue: <<>>
-      })
+  def handle_init(_ctx, opts) do
+    state = struct!(State, Map.from_struct(opts))
 
     {[], state}
   end
 
   @impl true
-  def handle_stream_format(:input, _stream_format, _ctx, state) do
-    # ignore stream_formats, they will be sent in handle_buffer
-    {[], state}
+  def handle_stream_format(:input, %RemoteStream{}, _ctx, state) do
+    {[], %{state | input_self_delimiting?: state.assume_input_self_delimiting?}}
+  end
+
+  @impl true
+  def handle_stream_format(:input, %Opus{self_delimiting?: self_delimiting?}, _ctx, state) do
+    {[], %{state | input_self_delimiting?: self_delimiting?}}
   end
 
   defp set_current_pts(
@@ -95,7 +120,7 @@ defmodule Membrane.Opus.Parser do
   @impl true
   def handle_buffer(:input, %Buffer{payload: data, pts: input_pts}, ctx, state) do
     {delimitation_processor, self_delimiting?} =
-      Delimitation.get_processor(state.delimitation, state.input_delimitted?)
+      Delimitation.get_processor(state.delimitation, state.input_self_delimiting?)
 
     check_pts_integrity? = state.queue != <<>> and not state.generate_best_effort_timestamps?
 
@@ -153,7 +178,7 @@ defmodule Membrane.Opus.Parser do
          {:ok, _mode, _bandwidth, frame_duration} <-
            Util.parse_configuration(configuration_number),
          {:ok, header_size, frame_lengths, padding_size} <-
-           FrameLengths.parse(frame_packing, data, state.input_delimitted?),
+           FrameLengths.parse(frame_packing, data, state.input_self_delimiting?),
          expected_packet_size <- header_size + Enum.sum(frame_lengths) + padding_size,
          {:ok, raw_packet, rest} <- rest_of_packet(data, expected_packet_size) do
       duration = packet_duration(frame_lengths, frame_duration)
