@@ -52,8 +52,8 @@ defmodule Membrane.Opus.Parser.Delimitation do
       last_length_size = byte_size(last_length)
       parsed_header_size = header_size - last_length_size
 
-      <<parsed_head::binary-size(parsed_header_size), _last_length::binary-size(last_length_size),
-        body::binary>> = data
+      <<parsed_head::binary-size(^parsed_header_size),
+        _last_length::binary-size(^last_length_size), body::binary>> = data
 
       <<parsed_head::binary, body::binary>>
     end
@@ -66,7 +66,7 @@ defmodule Membrane.Opus.Parser.Delimitation do
 
     @impl Processor
     def process(data, frame_lengths, header_size) do
-      <<head::binary-size(header_size), body::binary>> = data
+      <<head::binary-size(^header_size), body::binary>> = data
 
       <<head::binary, frame_lengths |> List.last() |> Processor.encode_length()::binary,
         body::binary>>

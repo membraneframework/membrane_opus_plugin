@@ -148,7 +148,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
         output: buffers_from_fixtures(@fixtures, true),
         stream_format: %RemoteStream{type: :bytestream}
       })
-      |> child(:parser, %Parser{input_delimitted?: true})
+      |> child(:parser, %Parser{fallback_input_delimitation: true})
       |> child(:sink, Sink)
     ]
 
@@ -163,7 +163,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
         output: buffers_from_fixtures(@fixtures, true),
         stream_format: %RemoteStream{type: :bytestream}
       })
-      |> child(:parser, %Parser{delimitation: :undelimit, input_delimitted?: true})
+      |> child(:parser, %Parser{delimitation: :undelimit, fallback_input_delimitation: true})
       |> child(:sink, Sink)
     ]
 
@@ -206,7 +206,10 @@ defmodule Membrane.Opus.Parser.ParserTest do
         output: buffers_from_fixtures(@fixtures, true, true),
         stream_format: %RemoteStream{type: :bytestream}
       })
-      |> child(:parser, %Parser{input_delimitted?: true, generate_best_effort_timestamps?: true})
+      |> child(:parser, %Parser{
+        fallback_input_delimitation: true,
+        generate_best_effort_timestamps?: true
+      })
       |> child(:sink, Sink)
     ]
 
@@ -223,7 +226,7 @@ defmodule Membrane.Opus.Parser.ParserTest do
       })
       |> child(:parser, %Parser{
         delimitation: :undelimit,
-        input_delimitted?: true,
+        fallback_input_delimitation: true,
         generate_best_effort_timestamps?: true
       })
       |> child(:sink, Sink)
