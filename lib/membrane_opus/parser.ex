@@ -31,10 +31,7 @@ defmodule Membrane.Opus.Parser do
                 on the self-delimiting Opus format.
                 """
               ],
-              # Remote
-              # Opus undel
-              # Opus del
-              assume_input_self_delimiting?: [
+              fallback_input_delimitation: [
                 spec: boolean(),
                 default: false,
                 description: """
@@ -66,7 +63,7 @@ defmodule Membrane.Opus.Parser do
 
     @type t :: %__MODULE__{
             delimitation: Parser.delimitation_t(),
-            assume_input_self_delimiting?: boolean(),
+            fallback_input_delimitation: boolean(),
             generate_best_effort_timestamps?: boolean(),
             current_pts: Membrane.Time.t() | nil,
             queue: binary(),
@@ -75,7 +72,7 @@ defmodule Membrane.Opus.Parser do
 
     @enforce_keys [
       :delimitation,
-      :assume_input_self_delimiting?,
+      :fallback_input_delimitation,
       :generate_best_effort_timestamps?
     ]
 
@@ -96,7 +93,7 @@ defmodule Membrane.Opus.Parser do
 
   @impl true
   def handle_stream_format(:input, %RemoteStream{}, _ctx, %State{} = state) do
-    {[], %State{state | input_self_delimiting?: state.assume_input_self_delimiting?}}
+    {[], %State{state | input_self_delimiting?: state.fallback_input_delimitation}}
   end
 
   @impl true
