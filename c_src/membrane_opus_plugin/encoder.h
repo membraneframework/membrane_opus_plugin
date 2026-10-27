@@ -8,6 +8,7 @@ typedef struct State State;
 struct State {
   struct OpusEncoder *encoder;
   unsigned char *buffer;
+  int channels;
 };
 
 #include "_generated/encoder.h"

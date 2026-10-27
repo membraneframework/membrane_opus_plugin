@@ -27,6 +27,7 @@ static char *get_error(int err_code) {
 UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application, int bitrate, int signal_type) {
   State *state = unifex_alloc_state(env);
   state->buffer = calloc(MAX_PACKET, sizeof(unsigned char));
+  state->channels = channels;
 
   int error = 0;
   state->encoder = opus_encoder_create(input_rate, channels, application, &error);
@@ -52,6 +53,13 @@ UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application
 
 UNIFEX_TERM encode_packet(UnifexEnv *env, State *state,
                           UnifexPayload *in_payload, int frame_size) {
+  // opus_encode reads frame_size * channels samples from the payload, so a
+  // shorter payload would be read out of bounds.
+  if (frame_size <= 0 ||
+      in_payload->size < (size_t)frame_size * state->channels * sizeof(opus_int16)) {
+    return encode_packet_result_error(env, "invalid_frame_size");
+  }
+
   int encoded_size_or_error = opus_encode(
     state->encoder, (opus_int16 *)in_payload->data,
     frame_size, state->buffer, MAX_PACKET
