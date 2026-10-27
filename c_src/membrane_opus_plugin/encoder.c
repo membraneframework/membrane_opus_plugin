@@ -34,12 +34,12 @@ UNIFEX_TERM create(UnifexEnv *env, int input_rate, int channels, int application
     unifex_release_state(env, state);
     return unifex_raise(env, (char *)opus_strerror(error));
   }
-  opus_encoder_ctl(state->encoder, OPUS_SET_BITRATE(bitrate), &error);
+  error = opus_encoder_ctl(state->encoder, OPUS_SET_BITRATE(bitrate));
   if (error != OPUS_OK) {
     unifex_release_state(env, state);
     return unifex_raise(env, (char *)opus_strerror(error));
   }
-  opus_encoder_ctl(state->encoder, OPUS_SET_SIGNAL(signal_type), &error);
+  error = opus_encoder_ctl(state->encoder, OPUS_SET_SIGNAL(signal_type));
   if (error != OPUS_OK) {
     unifex_release_state(env, state);
     return unifex_raise(env, (char *)opus_strerror(error));
